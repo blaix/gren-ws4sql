@@ -1,0 +1,16 @@
+{
+    "type": "package",
+    "platform": "node",
+    "name": "blaix/gren-ws4sql",
+    "summary": "Gren API for ws4sql(ite)",
+    "license": "BSD-3-Clause",
+    "version": "1.0.0",
+    "exposed-modules": [
+        "Db"
+    ],
+    "gren-version": "0.5.0 <= v < 0.6.0",
+    "dependencies": {
+        "gren-lang/core": "6.0.0 <= v < 7.0.0",
+        "gren-lang/node": "5.0.0 <= v < 6.0.0"
+    }
+}
