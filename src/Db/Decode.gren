@@ -1,0 +1,138 @@
+module Db.Decode exposing
+    ( Decoder
+
+    -- Primitives
+    , int
+    , string
+
+    -- OBJECTS
+    , field
+    , ws4sqlResponse
+
+    -- Mapping
+    , map
+    , map2
+    , map3
+    , map4
+    , map5
+    , map6
+    , map7
+    , map8
+    )
+
+
+import Db.Encode
+import Json.Decode
+import Json.Encode
+
+
+type Decoder a
+    = Decoder (Json.Decode.Decoder a)
+
+
+-- TODO: error handling
+type Error
+    = Error
+
+
+-- PRIMITIVES
+
+
+int : Decoder Int
+int =
+    Decoder (Json.Decode.int)
+
+
+string : Decoder String
+string =
+    Decoder (Json.Decode.string)
+
+
+-- OBJECTS
+
+
+field : String -> Decoder a -> Decoder a
+field name (Decoder decoder) =
+    Decoder (Json.Decode.field name decoder) 
+
+
+ws4sqlResponse : Decoder a -> Json.Decode.Decoder (Array a)
+ws4sqlResponse decoder =
+    -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
+    -- We will get a response that looks like this:
+    --     {
+    --         "results": [
+    --             {
+    --                 ...
+    --                 "resultSet": [
+    --                     { "id": 1, "name": "Justin" }
+    --                 ]
+    --             }
+    --          ]
+    --     }
+    Json.Decode.map Array.flatten <|
+        Json.Decode.field "results" <|
+            Json.Decode.array <|
+                Json.Decode.field "resultSet" <|
+                    Json.Decode.array <|
+                        (unwrap decoder)
+
+
+-- RUN DECODERS
+
+
+decode : Decoder a -> Db.Encode.Value -> Result Error a
+decode decoder value =
+    Json.Decode.decodeValue (unwrap decoder) value
+        |> Result.mapError
+            -- TODO: helpful error variants
+            (\error ->
+                Error
+            )
+
+
+unwrap : Decoder a -> Json.Decode.Decoder a
+unwrap (Decoder inner) =
+    inner
+
+
+-- MAPPING
+
+map : (a -> b) -> Decoder a -> Decoder b
+map mapper (Decoder decoder) =
+    Decoder (Json.Decode.map mapper decoder)
+
+
+map2 : (a -> b -> c) -> Decoder a -> Decoder b -> Decoder c
+map2 m (Decoder a) (Decoder b) =
+    Decoder (Json.Decode.map2 m a b)
+
+
+map3 : (a -> b -> c -> d) -> Decoder a -> Decoder b -> Decoder c -> Decoder d
+map3 m (Decoder a) (Decoder b) (Decoder c) =
+    Decoder (Json.Decode.map3 m a b c)
+
+
+map4 : (a -> b -> c -> d -> e) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e
+map4 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) =
+    Decoder (Json.Decode.map4 m a b c d)
+
+
+map5 : (a -> b -> c -> d -> e -> f) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f
+map5 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) (Decoder e) =
+    Decoder (Json.Decode.map5 m a b c d e)
+
+
+map6 : (a -> b -> c -> d -> e -> f -> g) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g
+map6 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) (Decoder e) (Decoder f) =
+    Decoder (Json.Decode.map6 m a b c d e f)
+
+
+map7 : (a -> b -> c -> d -> e -> f -> g -> h) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h
+map7 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) (Decoder e) (Decoder f) (Decoder g) =
+    Decoder (Json.Decode.map7 m a b c d e f g)
+
+
+map8 : (a -> b -> c -> d -> e -> f -> g -> h -> i) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder i
+map8 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) (Decoder e) (Decoder f) (Decoder g) (Decoder h) =
+    Decoder (Json.Decode.map8 m a b c d e f g h)

@@ -3,7 +3,9 @@
   "packages": [
     "nodejs@20",
     "github:gren-lang/nix/0.5.2",
-    "just@latest"
+    "just@latest",
+    "entr@latest",
+    "fd@latest"
   ],
   "shell": {
     "init_hook": [

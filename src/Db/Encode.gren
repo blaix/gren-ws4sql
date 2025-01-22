@@ -1,0 +1,16 @@
+module Db.Encode exposing
+    ( Value
+    , int
+    )
+
+
+import Json.Encode
+
+
+type alias Value
+    = Json.Encode.Value
+
+
+int : Int -> Value
+int =
+    Json.Encode.int

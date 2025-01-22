@@ -1,0 +1,54 @@
+module Main exposing (main)
+
+import Db
+import Db.Decode exposing (Decoder)
+import Db.Encode
+import Expect
+import HttpClient
+import Init
+import Test exposing (describe, test)
+import Test.Runner.Effectful exposing (await, awaitError, init, thenRun)
+
+
+config =
+    { credentials = Nothing
+    , url = "http://localhost:12321/test"
+    }
+
+
+type alias Widget =
+    { id : Int
+    , name : String
+    }
+
+
+widgetDecoder : Decoder Widget
+widgetDecoder =
+    Db.Decode.map2
+        (\id name -> { id = id, name = name })
+        (Db.Decode.field "id" Db.Decode.int)
+        (Db.Decode.field "name" Db.Decode.string)
+
+
+main =
+    init <| \env ->
+        Init.await HttpClient.initialize <| \httpPerm ->
+            let
+                connection =
+                    Db.init httpPerm config
+            in
+            thenRun env <|
+                let
+                    query =
+                        Db.getOne connection
+                            { query = "select * from widgets where id = :id"
+                            , parameters = [{ key = "id", value = Db.Encode.int 1 }]
+                            , decoder = widgetDecoder
+                            }
+                in
+                await query "Db.getOne" <| \widget ->
+                    test "gets one" <| \_ ->
+                        Expect.equal widget
+                            { id = 1
+                            , name = "widget name"
+                            }

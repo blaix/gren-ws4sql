@@ -1,0 +1,115 @@
+module Db exposing
+    ( Connection
+    , Error(..)
+    , Query
+    , init
+    , getOne
+    )
+
+
+import Db.Encode
+import Db.Decode
+import HttpClient
+import Json.Encode
+import Json.Decode
+import Task exposing (Task)
+
+
+type alias Config =
+    { credentials : Maybe { username : String, password : String }
+    , url : String
+    }
+
+
+type Connection =
+    Connection
+        { credentials : Maybe { username : String, password : String }
+        , url : String
+        , httpPerm : HttpClient.Permission
+        }
+
+
+init : HttpClient.Permission -> Config -> Connection
+init httpPerm { credentials, url } =
+    Connection
+        { credentials = credentials
+        , url = url
+        , httpPerm = httpPerm
+        }
+
+
+type Error =
+    Error
+
+
+type alias Query a =
+    { query : String
+    , parameters : Array { key : String, value : Db.Encode.Value }
+    , decoder : Db.Decode.Decoder a
+    }
+
+
+getOne : Connection -> Query a -> Task Error a
+getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder } =
+    let
+        encodedCreds =
+            when credentials is
+                Just { username, password } ->
+                    Json.Encode.object
+                        [ { key = "username", value = Json.Encode.string username }
+                        , { key = "password", value = Json.Encode.string password }
+                        ]
+                Nothing ->
+                    Json.Encode.null
+        
+        encodedQuery =
+            -- See https://germ.gitbook.io/ws4sqlite/documentation/requests
+            -- We want a request that looks like this:
+            --     { 
+            --         "transaction": [
+            --             {
+            --                 "query": "select * from User where id = ?",
+            --                 "values": [ userId ]
+            --             }
+            --         ]
+            --     }
+            Json.Encode.object
+                [ { key = "credentials"
+                  , value = encodedCreds
+                  }
+                , { key = "transaction"
+                  , value = Json.Encode.array Json.Encode.object
+                    [ [ { key = "query"
+                        , value = Json.Encode.string query
+                        }
+                      , { key = "values"
+                        , value = Json.Encode.object parameters
+                        }
+                      ]
+                    ]
+                  }
+                ]
+
+        decodeResponse =
+            Db.Decode.ws4sqlResponse decoder
+                |> Json.Decode.map
+                    (\resultArray ->
+                        when resultArray is
+                            [ singleResult ] ->
+                                singleResult
+                            [] ->
+                                Debug.todo "no result error"
+                            _ ->
+                                Debug.todo "too many results error"
+                    )
+        in
+        HttpClient.post "http://localhost:8080/dev"
+            |> HttpClient.withJsonBody encodedQuery
+            |> HttpClient.expectJson decodeResponse
+            |> HttpClient.send httpPerm
+            |> Task.map .data
+            |> Task.mapError
+                (\error ->
+                    -- TODO: helpful errors
+                    Error
+                )
