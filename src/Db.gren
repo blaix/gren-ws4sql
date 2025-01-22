@@ -103,7 +103,7 @@ getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
                                 Debug.todo "too many results error"
                     )
         in
-        HttpClient.post "http://localhost:8080/dev"
+        HttpClient.post url
             |> HttpClient.withJsonBody encodedQuery
             |> HttpClient.expectJson decodeResponse
             |> HttpClient.send httpPerm
