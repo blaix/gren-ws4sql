@@ -6,8 +6,8 @@ import Db.Encode
 import Expect
 import HttpClient
 import Init
-import Test exposing (describe, test)
-import Test.Runner.Effectful exposing (await, awaitError, init, thenRun)
+import Node
+import Test.Runner.Effectful exposing (await, awaitError, describe, test, run)
 
 
 config =
@@ -30,15 +30,15 @@ widgetDecoder =
         (Db.Decode.field "name" Db.Decode.string)
 
 
+main : Node.SimpleProgram a
 main =
-    init <| \env ->
+    Node.defineSimpleProgram <| \env ->
         Init.await HttpClient.initialize <| \httpPerm ->
-            let
-                connection =
-                    Db.init httpPerm config
-            in
-            thenRun env <|
+            run env <|
                 let
+                    connection =
+                        Db.init httpPerm config
+
                     query =
                         Db.getOne connection
                             { query = "select * from widgets where id = :id"
