@@ -39,7 +39,7 @@ init httpPerm { credentials, url } =
 
 
 type Error =
-    Error
+    Error String
 
 
 type alias Query a =
@@ -108,8 +108,4 @@ getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
             |> HttpClient.expectJson decodeResponse
             |> HttpClient.send httpPerm
             |> Task.map .data
-            |> Task.mapError
-                (\error ->
-                    -- TODO: helpful errors
-                    Error
-                )
+            |> Task.mapError (HttpClient.errorToString >> Error)
