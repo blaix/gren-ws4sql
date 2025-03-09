@@ -9,7 +9,7 @@ module Db exposing
 
 import Db.Encode
 import Db.Decode
-import HttpClient
+import HttpClient exposing (Error(..), Response)
 import Json.Encode
 import Json.Decode
 import Task exposing (Task)
@@ -52,17 +52,7 @@ type alias Query a =
 getOne : Connection -> Query a -> Task Error a
 getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder } =
     let
-        encodedCreds =
-            when credentials is
-                Just { username, password } ->
-                    Json.Encode.object
-                        [ { key = "username", value = Json.Encode.string username }
-                        , { key = "password", value = Json.Encode.string password }
-                        ]
-                Nothing ->
-                    Json.Encode.null
-        
-        encodedQuery =
+        json =
             -- See https://germ.gitbook.io/ws4sqlite/documentation/requests
             -- We want a request that looks like this:
             --     { 
@@ -73,22 +63,43 @@ getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
             --             }
             --         ]
             --     }
-            Json.Encode.object
-                [ { key = "credentials"
-                  , value = encodedCreds
-                  }
-                , { key = "transaction"
-                  , value = Json.Encode.array Json.Encode.object
-                    [ [ { key = "query"
-                        , value = Json.Encode.string query
-                        }
-                      , { key = "values"
-                        , value = Json.Encode.object parameters
-                        }
-                      ]
-                    ]
-                  }
+            [ { key = "transaction"
+              , value = Json.Encode.array Json.Encode.object
+                [ [ { key = "query"
+                    , value = Json.Encode.string query
+                    }
+                  , { key = "values"
+                    , value = Json.Encode.object parameters
+                    }
+                  ]
                 ]
+              }
+            ]
+
+        withCreds =
+            when credentials is
+                Just { username, password } ->
+                    Array.append
+                        json
+                        [ { key = "credentials"
+                          , value =
+                            Json.Encode.object
+                                [ { key = "username", value = Json.Encode.string username }
+                                , { key = "password", value = Json.Encode.string password }
+                                ]
+                          }
+                        ]
+
+                Nothing ->
+                    json
+
+        encodedQuery =
+            Json.Encode.object withCreds
+
+        _ =
+            Debug.log "query" <|
+                Json.Encode.encode 0 encodedQuery
+        
 
         decodeResponse =
             Db.Decode.ws4sqlResponse decoder
@@ -108,4 +119,18 @@ getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
             |> HttpClient.expectJson decodeResponse
             |> HttpClient.send httpPerm
             |> Task.map .data
-            |> Task.mapError (HttpClient.errorToString >> Error)
+            |> Task.mapError mapHttpError
+
+
+mapHttpError : HttpClient.Error a -> Error
+mapHttpError error =
+    when error is
+        BadStatus response ->
+            -- TODO: figure out if/how I can get a string here without debug
+            -- Can/Should the HttpClient.Error type change the BadStatus variant
+            -- from `BadStatus (Response a)` to `BadStatus (Response String)`?
+            Error (Debug.toString response.data)
+
+        _ ->
+            Error (HttpClient.errorToString error)
+        
