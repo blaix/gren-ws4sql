@@ -1,10 +1,8 @@
 test:
     mkdir -p tests/db && \
-        gren make && cd tests && gren make src/Main.gren && \
-        npx concurrently --kill-others --names db,tests \
-            "npx ws4sql --bind-host=localhost --quick-db=db/test" \
-            "npx wait-on tcp:12321 && node app" && \
-        gren docs
+        npx concurrently --names db,tests \
+            "npx ws4sql --bind-host=localhost --quick-db=tests/db/test" \
+            "npx wait-on tcp:12321 && fd .+\.gren | entr just build-and-run-tests"
 
-watch:
-    fd ".+\.(js|ts|gren|json)" | entr -c just test
+build-and-run-tests:
+    gren make && cd tests && gren make src/Main.gren && node app
