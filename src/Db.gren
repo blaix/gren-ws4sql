@@ -96,9 +96,9 @@ getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
         encodedQuery =
             Json.Encode.object withCreds
 
-        _ =
-            Debug.log "query" <|
-                Json.Encode.encode 0 encodedQuery
+        -- _ =
+        --     Debug.log "query" <|
+        --         Json.Encode.encode 0 encodedQuery
         
 
         decodeResponse =
