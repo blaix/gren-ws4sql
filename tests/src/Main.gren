@@ -9,7 +9,8 @@ import Init
 import Node
 import Task exposing (Task)
 import Test.Runner.Effectful exposing 
-    ( await
+    ( Test
+    , await
     , awaitError
     , concat
     , describe
@@ -30,24 +31,6 @@ type alias User =
     }
 
 
-setupDb : Db.Connection -> Task Db.Error (Array Int)
-setupDb connection =
-    Db.transaction connection
-        [ { parameters = []
-          , statement = "DROP TABLE IF EXISTS users"
-          }
-        , { parameters = []
-          , statement =
-            """
-            CREATE TABLE users (
-                id INTEGER,
-                name TEXT NOT NULL
-            )
-            """
-          }
-        ]
-            
-
 userDecoder : Decoder User
 userDecoder =
     Db.Decode.map2
@@ -56,50 +39,92 @@ userDecoder =
         (Db.Decode.field "name" Db.Decode.string)
 
 
+connect : HttpClient.Permission -> Db.Connection
+connect permission =
+    Db.init permission config
+
+
+reset : Db.Connection -> Task Db.Error (Array Int)
+reset connection =
+    Db.transaction connection
+        [ { parameters = []
+          , statement =
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER,
+                name TEXT NOT NULL
+            )
+            """
+          }
+        , { parameters = []
+          , statement = "DELETE FROM users"
+          }
+        ]
+
+
+insert : Db.Connection -> Int -> String -> Task Db.Error Int
+insert connection id name =
+    Db.execute connection
+        { statement = "insert into users (id, name) values (:id, :name)"
+        , parameters = 
+            [ { key = "id", value = Db.Encode.int id }
+            , { key = "name", value = Db.Encode.string name }
+            ]
+        }
+
+
+getOne : Db.Connection -> Int -> Task Db.Error User
+getOne connection id =
+    Db.getOne connection
+        { query = "select * from users where id = :id"
+        , parameters = [{ key = "id", value = Db.Encode.int id }]
+        , decoder = userDecoder
+        }
+
 
 main : Node.SimpleProgram a
 main =
     Node.defineSimpleProgram <| \env ->
         Init.await HttpClient.initialize <| \httpPerm ->
+            let
+                connection =
+                    connect httpPerm
+            in
             run env <|
-                let
-                    connection =
-                        Db.init httpPerm config
+                concat
+                    [ executeTests connection
+                    -- TODO: transaction tests
+                    , getOneTests connection
+                    ]
 
-                    insert id =
-                        Db.execute connection
-                            { statement = "insert into users (id, name) values (:id, \"Sarah\")"
-                            , parameters = [{ key = "id", value = Db.Encode.int id }]
+
+executeTests : Db.Connection -> Test
+executeTests connection =
+    await (reset connection) "Reset DB for execute tests" <| \_ ->
+    await (insert connection 123 "Justin") "Execute statement" <| \executeResult ->
+        test "returns number of affected rows" <| \_ ->
+            Expect.equal 1 executeResult
+
+
+getOneTests : Db.Connection -> Test
+getOneTests connection =
+    await (reset connection) "Reset DB for getOne tests" <| \_ ->
+    await (insert connection 1 "Sarah") "Insert test user" <| \_ ->
+        describe "Db.getOne"
+            [ await (getOne connection 1) "Get test user" <| \userResult ->
+                test "returns 1 user" <| \_ ->
+                    userResult
+                        |> Expect.equal 
+                            { id = 1
+                            , name = "Sarah"
                             }
 
-                    get id =
-                        Db.getOne connection
-                            { query = "select * from users where id = :id"
-                            , parameters = [{ key = "id", value = Db.Encode.int id }]
-                            , decoder = userDecoder
-                            }
+            , awaitError (getOne connection 2) "Get non-existant user" <| \error ->
+                test "returns NoResultError" <| \_ ->
+                    Expect.equal NoResultError error
 
-                in
-                await (setupDb connection) "Initialize test db" <| \_ ->
-                await (insert 1) "Insert test user" <| \insertResult ->
-                    concat
-                        [ test "affects 1 row" <| \_ ->
-                            Expect.equal 1 insertResult
-
-                        , await (get 1) "Get test user" <| \userResult ->
-                            test "returns 1 user" <| \_ ->
-                                userResult
-                                    |> Expect.equal 
-                                        { id = 1
-                                        , name = "Sarah"
-                                        }
-
-                        , awaitError (get 2) "Get non-existant user" <| \error ->
-                            test "returns NoResultError" <| \_ ->
-                                Expect.equal NoResultError error
-
-                        , await (insert 1) "Insert duplicate user" <| \_ ->
-                            awaitError (get 1) "Get one duplicated user" <| \error ->
-                                test "returns MultipleResultsError" <| \_ ->
-                                    Expect.equal (MultipleResultsError 2) error
-                        ]
+            , await (insert connection 1 "Another Sarah") "Insert duplicate user" <| \_ ->
+                awaitError (getOne connection 1) "Get one duplicated user" <| \error ->
+                    test "returns MultipleResultsError" <| \_ ->
+                        Expect.equal (MultipleResultsError 2) error
+            ]

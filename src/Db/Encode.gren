@@ -1,6 +1,7 @@
 module Db.Encode exposing
     ( Value
     , int
+    , string
     )
 
 
@@ -14,3 +15,8 @@ type alias Value
 int : Int -> Value
 int =
     Json.Encode.int
+
+
+string : String -> Value
+string =
+    Json.Encode.string
