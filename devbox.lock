@@ -97,9 +97,6 @@
         }
       }
     },
-    "github:NixOS/nixpkgs/nixpkgs-unstable": {
-      "resolved": "github:NixOS/nixpkgs/de0fe301211c267807afd11b12613f5511ff7433?lastModified=1741310760&narHash=sha256-aizILFrPgq%2FW53Jw8i0a1h1GZAAKtlYOrG%2FA5r46gVM%3D"
-    },
     "github:gren-lang/nix/0.5.2": {
       "resolved": "github:gren-lang/nix/7998732cd4878c7b121b4ebb2d9929b0b635f9b9?lastModified=1736597972&narHash=sha256-s40gUeBIqhG1WdcXyNAZsebAVgEOivMhleofe4%2BmbvM%3D"
     },
