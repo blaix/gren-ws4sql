@@ -8,6 +8,7 @@ module Db exposing
     , Query
     , Statement
     , getOne
+    , getMaybeOne
     , getAll
     , transaction
     , execute
@@ -73,6 +74,12 @@ getOne connection query =
         |> Task.andThen toSingleResultTask
 
 
+getMaybeOne : Connection -> Query a -> Task Error (Maybe a)
+getMaybeOne connection query =
+    getAll connection query
+        |> Task.andThen toMaybeSingleResultTask
+
+
 getAll : Connection -> Query a -> Task Error (Array a)
 getAll (Connection { credentials, url, httpPerm }) { query, parameters, decoder } =
     let
@@ -132,6 +139,9 @@ execute connection statement =
         |> Task.andThen toSingleResultTask
 
 
+-- HELPERS
+
+
 toSingleResultTask : Array a -> Task Error a
 toSingleResultTask rows =
     when rows is
@@ -145,6 +155,16 @@ toSingleResultTask rows =
             Task.fail <|
                 MultipleResultsError <|
                     Array.length rows
+
+
+toMaybeSingleResultTask : Array a -> Task Error (Maybe a)
+toMaybeSingleResultTask rows =
+    when rows is
+        [ a ] ->
+            Task.succeed (Just a)
+
+        _ ->
+            Task.succeed Nothing
 
 
 toRequestJson :
