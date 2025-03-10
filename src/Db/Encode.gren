@@ -20,3 +20,6 @@ int =
 string : String -> Value
 string =
     Json.Encode.string
+
+
+-- TODO: remaining encoders

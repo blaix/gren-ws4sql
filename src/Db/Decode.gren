@@ -49,6 +49,9 @@ string =
     Decoder (Json.Decode.string)
 
 
+-- TODO: remaining primitive decoders
+
+
 -- OBJECTS
 
 

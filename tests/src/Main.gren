@@ -19,10 +19,90 @@ import Test.Runner.Effectful exposing
     )
 
 
+-- RUNNER
+
+
 config =
     { credentials = Nothing
     , url = "http://localhost:12321/test"
     }
+
+
+main : Node.SimpleProgram a
+main =
+    Node.defineSimpleProgram <| \env ->
+        Init.await HttpClient.initialize <| \httpPerm ->
+            let
+                connection =
+                    connect httpPerm
+            in
+            run env <|
+                concat
+                    [ executeTests connection
+                    -- TODO: transaction tests
+                    , getOneTests connection
+                    , getAllTests connection
+                    ]
+
+
+-- TESTS
+
+
+executeTests : Db.Connection -> Test
+executeTests connection =
+    let
+        execute =
+            Db.execute connection
+                { statement = "insert into users (id, name) values (1, \"one\")"
+                , parameters = []
+                }
+    in
+    await (reset connection) "Reset DB for execute tests" <| \_ ->
+    await execute "Execute statement" <| \executeResult ->
+        test "returns number of affected rows" <| \_ ->
+            Expect.equal 1 executeResult
+
+
+getOneTests : Db.Connection -> Test
+getOneTests connection =
+    await (initUsers connection [user1]) "Insert test user" <| \_ ->
+        describe "Db.getOne"
+            [ await (getOne connection user1.id) "Get test user" <| \userResult ->
+                test "returns 1 user" <| \_ ->
+                    Expect.equal user1 userResult
+
+            , awaitError (getOne connection 99) "Get non-existant user" <| \error ->
+                test "returns NoResultError" <| \_ ->
+                    Expect.equal NoResultError error
+
+            , await (initUsers connection [user1, user1]) "Insert duplicate users" <| \_ ->
+                awaitError (getOne connection 1) "Get one duplicated user" <| \error ->
+                    test "returns MultipleResultsError" <| \_ ->
+                        Expect.equal (MultipleResultsError 2) error
+            ]
+
+
+getAllTests : Db.Connection -> Test
+getAllTests connection =
+    describe "Db.getAll tests"
+        [ await (reset connection) "with no users" <| \_ ->
+          await (getAll connection) "getAll" <| \result ->
+              test "returns empty array" <| \_ ->
+                  Expect.equal [] result
+
+        , await (initUsers connection [user1]) "with one user" <| \_ ->
+          await (getAll connection) "getAll" <| \result ->
+              test "returns array with just the user" <| \_ ->
+                  Expect.equal [user1] result
+
+        , await (initUsers connection [user1, user2]) "with two users" <| \_ ->
+          await (getAll connection) "getAll" <| \result ->
+              test "returns array with both users" <| \_ ->
+                  Expect.equal [user1, user2] result
+        ]
+
+
+-- USERS
 
 
 type alias User =
@@ -37,6 +117,19 @@ userDecoder =
         (\id name -> { id = id, name = name })
         (Db.Decode.field "id" Db.Decode.int)
         (Db.Decode.field "name" Db.Decode.string)
+
+
+user1 : User
+user1 =
+    { id = 1, name = "one" }
+
+
+user2 : User
+user2 =
+    { id = 2, name = "two" }
+
+
+-- HELPERS
 
 
 connect : HttpClient.Permission -> Db.Connection
@@ -62,15 +155,25 @@ reset connection =
         ]
 
 
-insert : Db.Connection -> Int -> String -> Task Db.Error Int
-insert connection id name =
-    Db.execute connection
-        { statement = "insert into users (id, name) values (:id, :name)"
-        , parameters = 
-            [ { key = "id", value = Db.Encode.int id }
-            , { key = "name", value = Db.Encode.string name }
-            ]
-        }
+insertUsers : Db.Connection -> Array User -> Task Db.Error (Array Int)
+insertUsers connection users =
+    users
+        |> Array.map
+            (\{id, name} ->
+                { statement = "insert into users (id, name) values (:id, :name)"
+                , parameters =
+                    [ { key = "id", value = Db.Encode.int id }
+                    , { key = "name", value = Db.Encode.string name }
+                    ]
+                }
+            )
+        |> Db.transaction connection
+
+
+initUsers : Db.Connection -> Array User -> Task Db.Error (Array Int)
+initUsers connection users =
+    reset connection
+        |> Task.andThen (\_ -> insertUsers connection users)
 
 
 getOne : Db.Connection -> Int -> Task Db.Error User
@@ -82,49 +185,11 @@ getOne connection id =
         }
 
 
-main : Node.SimpleProgram a
-main =
-    Node.defineSimpleProgram <| \env ->
-        Init.await HttpClient.initialize <| \httpPerm ->
-            let
-                connection =
-                    connect httpPerm
-            in
-            run env <|
-                concat
-                    [ executeTests connection
-                    -- TODO: transaction tests
-                    , getOneTests connection
-                    ]
+getAll : Db.Connection -> Task Db.Error (Array User)
+getAll connection =
+    Db.getAll connection
+        { query = "select * from users order by id"
+        , parameters = []
+        , decoder = userDecoder
+        }
 
-
-executeTests : Db.Connection -> Test
-executeTests connection =
-    await (reset connection) "Reset DB for execute tests" <| \_ ->
-    await (insert connection 123 "Justin") "Execute statement" <| \executeResult ->
-        test "returns number of affected rows" <| \_ ->
-            Expect.equal 1 executeResult
-
-
-getOneTests : Db.Connection -> Test
-getOneTests connection =
-    await (reset connection) "Reset DB for getOne tests" <| \_ ->
-    await (insert connection 1 "Sarah") "Insert test user" <| \_ ->
-        describe "Db.getOne"
-            [ await (getOne connection 1) "Get test user" <| \userResult ->
-                test "returns 1 user" <| \_ ->
-                    userResult
-                        |> Expect.equal 
-                            { id = 1
-                            , name = "Sarah"
-                            }
-
-            , awaitError (getOne connection 2) "Get non-existant user" <| \error ->
-                test "returns NoResultError" <| \_ ->
-                    Expect.equal NoResultError error
-
-            , await (insert connection 1 "Another Sarah") "Insert duplicate user" <| \_ ->
-                awaitError (getOne connection 1) "Get one duplicated user" <| \error ->
-                    test "returns MultipleResultsError" <| \_ ->
-                        Expect.equal (MultipleResultsError 2) error
-            ]

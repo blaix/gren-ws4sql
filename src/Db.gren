@@ -8,6 +8,7 @@ module Db exposing
     , Query
     , Statement
     , getOne
+    , getAll
     , transaction
     , execute
 
@@ -67,7 +68,13 @@ type alias Statement =
 
 
 getOne : Connection -> Query a -> Task Error a
-getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder } =
+getOne connection query =
+    getAll connection query
+        |> Task.andThen toSingleResultTask
+
+
+getAll : Connection -> Query a -> Task Error (Array a)
+getAll (Connection { credentials, url, httpPerm }) { query, parameters, decoder } =
     let
         json =
             [ [ { key = "query"
@@ -89,7 +96,6 @@ getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
             |> HttpClient.send httpPerm
             |> Task.mapError mapHttpError
             |> Task.map .data
-            |> Task.andThen toSingleResultTask
 
 
 transaction : Connection -> Array Statement -> Task Error (Array Int)
