@@ -1,6 +1,6 @@
 module Main exposing (main)
 
-import Db
+import Db exposing (Error(..))
 import Db.Decode exposing (Decoder)
 import Db.Encode
 import Expect
@@ -40,7 +40,7 @@ setupDb connection =
           , statement =
             """
             CREATE TABLE users (
-                id INTEGER PRIMARY KEY,
+                id INTEGER,
                 name TEXT NOT NULL
             )
             """
@@ -66,30 +66,40 @@ main =
                     connection =
                         Db.init httpPerm config
 
-                    insert =
+                    insert id =
                         Db.execute connection
-                            { statement = "insert into users (id, name) values (1, \"Sarah\")"
-                            , parameters = []
+                            { statement = "insert into users (id, name) values (:id, \"Sarah\")"
+                            , parameters = [{ key = "id", value = Db.Encode.int id }]
                             }
 
-                    get =
+                    get id =
                         Db.getOne connection
                             { query = "select * from users where id = :id"
-                            , parameters = [{ key = "id", value = Db.Encode.int 1 }]
+                            , parameters = [{ key = "id", value = Db.Encode.int id }]
                             , decoder = userDecoder
                             }
+
                 in
                 await (setupDb connection) "Initialize test db" <| \_ ->
-                await insert "Insert test user" <| \insertResult ->
-                await get "Get test user" <| \userResult ->
+                await (insert 1) "Insert test user" <| \insertResult ->
                     concat
-                        [ test "insert affects 1 row" <| \_ ->
+                        [ test "affects 1 row" <| \_ ->
                             Expect.equal 1 insertResult
 
-                        , test "get returns 1 user" <| \_ ->
-                            userResult
-                                |> Expect.equal 
-                                    { id = 1
-                                    , name = "Sarah"
-                                    }
+                        , await (get 1) "Get test user" <| \userResult ->
+                            test "returns 1 user" <| \_ ->
+                                userResult
+                                    |> Expect.equal 
+                                        { id = 1
+                                        , name = "Sarah"
+                                        }
+
+                        , awaitError (get 2) "Get non-existant user" <| \error ->
+                            test "returns NoResultError" <| \_ ->
+                                Expect.equal NoResultError error
+
+                        , await (insert 1) "Insert duplicate user" <| \_ ->
+                            awaitError (get 1) "Get one duplicated user" <| \error ->
+                                test "returns MultipleResultsError" <| \_ ->
+                                    Expect.equal (MultipleResultsError 2) error
                         ]
