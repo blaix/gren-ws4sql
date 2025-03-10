@@ -7,7 +7,15 @@ import Expect
 import HttpClient
 import Init
 import Node
-import Test.Runner.Effectful exposing (await, awaitError, describe, test, run)
+import Task exposing (Task)
+import Test.Runner.Effectful exposing 
+    ( await
+    , awaitError
+    , concat
+    , describe
+    , run
+    , test
+    )
 
 
 config =
@@ -16,18 +24,37 @@ config =
     }
 
 
-type alias Widget =
+type alias User =
     { id : Int
     , name : String
     }
 
 
-widgetDecoder : Decoder Widget
-widgetDecoder =
+setupDb : Db.Connection -> Task Db.Error (Array Int)
+setupDb connection =
+    Db.transaction connection
+        [ { parameters = []
+          , statement = "DROP TABLE IF EXISTS users"
+          }
+        , { parameters = []
+          , statement =
+            """
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL
+            )
+            """
+          }
+        ]
+            
+
+userDecoder : Decoder User
+userDecoder =
     Db.Decode.map2
         (\id name -> { id = id, name = name })
         (Db.Decode.field "id" Db.Decode.int)
         (Db.Decode.field "name" Db.Decode.string)
+
 
 
 main : Node.SimpleProgram a
@@ -39,16 +66,30 @@ main =
                     connection =
                         Db.init httpPerm config
 
-                    query =
+                    insert =
+                        Db.execute connection
+                            { statement = "insert into users (id, name) values (1, \"Sarah\")"
+                            , parameters = []
+                            }
+
+                    get =
                         Db.getOne connection
-                            { query = "select * from widgets where id = :id"
+                            { query = "select * from users where id = :id"
                             , parameters = [{ key = "id", value = Db.Encode.int 1 }]
-                            , decoder = widgetDecoder
+                            , decoder = userDecoder
                             }
                 in
-                await query "Db.getOne" <| \widget ->
-                    test "gets one" <| \_ ->
-                        Expect.equal widget
-                            { id = 1
-                            , name = "widget name"
-                            }
+                await (setupDb connection) "Initialize test db" <| \_ ->
+                await insert "Insert test user" <| \insertResult ->
+                await get "Get test user" <| \userResult ->
+                    concat
+                        [ test "insert affects 1 row" <| \_ ->
+                            Expect.equal 1 insertResult
+
+                        , test "get returns 1 user" <| \_ ->
+                            userResult
+                                |> Expect.equal 
+                                    { id = 1
+                                    , name = "Sarah"
+                                    }
+                        ]

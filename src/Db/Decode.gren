@@ -7,7 +7,8 @@ module Db.Decode exposing
 
     -- OBJECTS
     , field
-    , ws4sqlResponse
+    , ws4sqlQueryResponse
+    , ws4sqlStatementResponse
 
     -- Mapping
     , map
@@ -56,14 +57,15 @@ field name (Decoder decoder) =
     Decoder (Json.Decode.field name decoder) 
 
 
-ws4sqlResponse : Decoder a -> Json.Decode.Decoder (Array a)
-ws4sqlResponse decoder =
+ws4sqlQueryResponse : Decoder a -> Json.Decode.Decoder (Array a)
+ws4sqlQueryResponse decoder =
     -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
     -- We will get a response that looks like this:
     --     {
     --         "results": [
     --             {
-    --                 ...
+    --                 "success": true,
+    --                 "resultHeaders": [ "id", "name" ],
     --                 "resultSet": [
     --                     { "id": 1, "name": "Justin" }
     --                 ]
@@ -72,10 +74,31 @@ ws4sqlResponse decoder =
     --     }
     Json.Decode.map Array.flatten <|
         Json.Decode.field "results" <|
+            -- TODO: handle success: false
+            -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
             Json.Decode.array <|
                 Json.Decode.field "resultSet" <|
                     Json.Decode.array <|
                         (unwrap decoder)
+
+
+ws4sqlStatementResponse : Json.Decode.Decoder (Array Int)
+ws4sqlStatementResponse =
+    -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
+    -- We will get a response that looks like this:
+    --     {
+    --         "results": [
+    --             {
+    --                 "success": true
+    --                 "rowsUpdated": 1
+    --             }
+    --          ]
+    --     }
+    Json.Decode.field "results" <|
+        -- TODO: handle success: false
+        -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
+        Json.Decode.array <|
+            Json.Decode.field "rowsUpdated" Json.Decode.int
 
 
 -- RUN DECODERS

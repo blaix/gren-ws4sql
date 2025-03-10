@@ -1,9 +1,18 @@
 module Db exposing
+
+    -- Initialization
     ( Connection
-    , Error(..)
-    , Query
     , init
+
+    -- Queries
+    , Query
+    , Statement
     , getOne
+    , transaction
+    , execute
+
+    -- Errors
+    , Error(..)
     )
 
 
@@ -13,6 +22,9 @@ import HttpClient exposing (Error(..), Response)
 import Json.Encode
 import Json.Decode
 import Task exposing (Task)
+
+
+-- INITIALIZATION
 
 
 type alias Config =
@@ -38,8 +50,7 @@ init httpPerm { credentials, url } =
         }
 
 
-type Error =
-    Error String
+-- QUERIES
 
 
 type alias Query a =
@@ -49,77 +60,139 @@ type alias Query a =
     }
 
 
+type alias Statement =
+    { statement : String
+    , parameters : Array { key : String, value : Db.Encode.Value }
+    }
+
+
 getOne : Connection -> Query a -> Task Error a
 getOne (Connection { credentials, url, httpPerm }) { query, parameters, decoder } =
     let
         json =
-            -- See https://germ.gitbook.io/ws4sqlite/documentation/requests
-            -- We want a request that looks like this:
-            --     { 
-            --         "transaction": [
-            --             {
-            --                 "query": "select * from User where id = ?",
-            --                 "values": [ userId ]
-            --             }
-            --         ]
-            --     }
-            [ { key = "transaction"
-              , value = Json.Encode.array Json.Encode.object
-                [ [ { key = "query"
-                    , value = Json.Encode.string query
-                    }
-                  , { key = "values"
-                    , value = Json.Encode.object parameters
-                    }
-                  ]
-                ]
-              }
+            [ [ { key = "query"
+                , value = Json.Encode.string query
+                }
+              , { key = "values"
+                , value = Json.Encode.object parameters
+                }
+              ]
             ]
-
-        withCreds =
-            when credentials is
-                Just { username, password } ->
-                    Array.append
-                        json
-                        [ { key = "credentials"
-                          , value =
-                            Json.Encode.object
-                                [ { key = "username", value = Json.Encode.string username }
-                                , { key = "password", value = Json.Encode.string password }
-                                ]
-                          }
-                        ]
-
-                Nothing ->
-                    json
-
-        encodedQuery =
-            Json.Encode.object withCreds
-
-        -- _ =
-        --     Debug.log "query" <|
-        --         Json.Encode.encode 0 encodedQuery
-        
+                |> toRequestJson credentials
 
         decodeResponse =
-            Db.Decode.ws4sqlResponse decoder
-                |> Json.Decode.map
-                    (\resultArray ->
-                        when resultArray is
-                            [ singleResult ] ->
-                                singleResult
-                            [] ->
-                                Debug.todo "no result error"
-                            _ ->
-                                Debug.todo "too many results error"
-                    )
+            Db.Decode.ws4sqlQueryResponse decoder
         in
         HttpClient.post url
-            |> HttpClient.withJsonBody encodedQuery
+            |> HttpClient.withJsonBody json
             |> HttpClient.expectJson decodeResponse
             |> HttpClient.send httpPerm
-            |> Task.map .data
             |> Task.mapError mapHttpError
+            |> Task.map .data
+            |> Task.andThen toSingleResultTask
+
+
+transaction : Connection -> Array Statement -> Task Error (Array Int)
+transaction (Connection { credentials, url, httpPerm }) statements =
+    let
+        json =
+            statements
+                |> Array.map
+                    (\{ statement, parameters } ->
+                        [ { key = "statement"
+                          , value = Json.Encode.string statement
+                          }
+                        , { key = "values"
+                          , value = Json.Encode.object parameters
+                          }
+                        ]
+                    )
+                |> toRequestJson credentials
+
+        -- _ =
+        --     Debug.log "query" (Json.Encode.encode 0 json)
+    in
+    HttpClient.post url
+        |> HttpClient.withJsonBody json
+        |> HttpClient.expectJson Db.Decode.ws4sqlStatementResponse
+        |> HttpClient.send httpPerm
+        |> Task.mapError mapHttpError
+        |> Task.map .data
+
+
+execute : Connection -> Statement -> Task Error Int
+execute connection statement =
+    transaction connection [ statement ]
+        |> Task.andThen toSingleResultTask
+
+
+toSingleResultTask : Array a -> Task Error a
+toSingleResultTask rows =
+    when rows is
+        [ a ] ->
+            Task.succeed a
+
+        [] ->
+            Task.fail NoResultError
+
+        _ ->
+            Task.fail <|
+                MultipleResultsError <|
+                    Array.length rows
+
+
+toRequestJson :
+    Maybe { username : String, password : String } ->
+    Array (Array { key : String, value : Json.Encode.Value }) ->
+    Json.Encode.Value
+toRequestJson credentials queries =
+    -- See https://germ.gitbook.io/ws4sqlite/documentation/requests
+    -- We want a request that looks like this:
+    --     { 
+    --         "transaction": [
+    --             {
+    --                 "query": "select * from User where id = ?",
+    --                 "values": [ userId ]
+    --             }
+    --         ]
+    --     }
+    [ { key = "transaction"
+      , value = Json.Encode.array Json.Encode.object queries
+      }
+    ]
+        |> withCreds credentials
+        |> Json.Encode.object
+
+
+withCreds : 
+    Maybe { username : String, password : String } ->
+    Array { key : String, value : Json.Encode.Value } -> 
+    Array { key : String, value : Json.Encode.Value }
+withCreds credentials =
+    Array.append <|
+        when credentials is
+            Just { username, password } ->
+                [ { key = "credentials"
+                  , value =
+                    Json.Encode.object
+                        [ { key = "username", value = Json.Encode.string username }
+                        , { key = "password", value = Json.Encode.string password }
+                        ]
+                  }
+                ]
+
+            Nothing ->
+                []
+
+
+
+-- ERRORS
+
+
+type Error
+    = Error String
+    | NoResultError
+    | MultipleResultsError Int
 
 
 mapHttpError : HttpClient.Error a -> Error
@@ -128,7 +201,7 @@ mapHttpError error =
         BadStatus response ->
             -- TODO: figure out if/how I can get a string here without debug
             -- Can/Should the HttpClient.Error type change the BadStatus variant
-            -- from `BadStatus (Response a)` to `BadStatus (Response String)`?
+            -- from `BadStatus (Response a)` to `BadStatus (Response Bytes)`?
             Error (Debug.toString response.data)
 
         _ ->
