@@ -1,15 +1,33 @@
 module Db.Encode exposing
     ( Value
+    , bool
+    , float
     , int
+    , null
+    , posix
     , string
     )
 
 
 import Json.Encode
+import Time
 
 
 type alias Value
     = Json.Encode.Value
+
+
+bool : Bool -> Value
+bool b =
+    if b then
+        Json.Encode.int 1
+    else
+        Json.Encode.int 0
+
+
+float : Float -> Value
+float =
+    Json.Encode.float
 
 
 int : Int -> Value
@@ -17,9 +35,16 @@ int =
     Json.Encode.int
 
 
+null : Value
+null =
+    Json.Encode.null
+
+
+posix : Time.Posix -> Value
+posix =
+    Time.posixToMillis >> Json.Encode.int
+
+
 string : String -> Value
 string =
     Json.Encode.string
-
-
--- TODO: remaining encoders

@@ -17,6 +17,7 @@ import Test.Runner.Effectful exposing
     , run
     , test
     )
+import Time
 
 
 -- RUNNER
@@ -43,10 +44,11 @@ main =
                     , getOneTests connection
                     , getMaybeOneTests connection
                     , getAllTests connection
+                    , encodeDecodeTests connection
                     ]
 
 
--- TESTS
+-- QUERY TESTS
 
 
 executeTests : Db.Connection -> Test
@@ -161,6 +163,103 @@ user2 =
     { id = 2, name = "two" }
 
 
+-- ENCODE / DECODE TESTS
+
+
+type alias AllTypes =
+    { nullableInt : Maybe Int
+    , float : Float
+    , string : String
+    , bool : Bool
+    , posix : Time.Posix
+    }
+
+
+allTypesDecoder : Decoder AllTypes
+allTypesDecoder =
+    Db.Decode.map5
+        (\nullableInt float string bool posix -> 
+            { nullableInt = nullableInt
+            , float = float
+            , string = string
+            , bool = bool
+            , posix = posix
+            }
+        )
+        (Db.Decode.field "nullableInt" (Db.Decode.nullable Db.Decode.int))
+        (Db.Decode.field "float" Db.Decode.float)
+        (Db.Decode.field "string" Db.Decode.string)
+        (Db.Decode.field "bool" Db.Decode.bool)
+        (Db.Decode.field "posix" Db.Decode.posix)
+
+
+encodeDecodeTests : Db.Connection -> Test
+encodeDecodeTests connection =
+    let
+        insert : AllTypes -> Task Db.Error Int
+        insert record =
+            let
+                nullableInt =
+                    when record.nullableInt is
+                        Just i ->
+                            Db.Encode.int i
+                        Nothing ->
+                            Db.Encode.null
+            in
+            Db.execute connection
+                { statement =
+                   """
+                   insert into allTypes (nullableInt, float, string, bool, posix)
+                   values (:nullableInt, :float, :string, :bool, :posix)
+                   """
+                , parameters =
+                    [ { key = "nullableInt", value = nullableInt }
+                    , { key = "float", value = Db.Encode.float record.float }
+                    , { key = "string", value = Db.Encode.string record.string }
+                    , { key = "bool", value = Db.Encode.bool record.bool }
+                    , { key = "posix", value = Db.Encode.posix record.posix }
+                    ]
+                }
+
+        get : Task Db.Error AllTypes
+        get =
+            Db.getOne connection
+                { parameters = []
+                , decoder = allTypesDecoder
+                , query = "select * from allTypes"
+                }
+
+        task : AllTypes -> Task Db.Error AllTypes 
+        task record =
+            reset connection
+                |> Task.andThen (\_ -> insert record)
+                |> Task.andThen (\_ -> get)
+
+        allTypes =
+            { nullableInt = Just 1
+            , float = 1.23
+            , string = "abc"
+            , bool = True
+            , posix = Time.millisToPosix 123
+            }
+
+        allTypesWithNegatives =
+            { allTypes 
+                | nullableInt = Nothing 
+                , bool = False
+            }
+    in
+    concat
+        [ await (task allTypes) "insert and get" <| \result ->
+            test "encodes and decodes" <| \_ ->
+                Expect.equal allTypes result
+
+        , await (task allTypesWithNegatives) "insert and get with falsey values" <| \result ->
+            test "encodes and decodes with falsey values" <| \_ ->
+                Expect.equal allTypesWithNegatives result
+        ]
+
+
 -- HELPERS
 
 
@@ -182,7 +281,22 @@ reset connection =
             """
           }
         , { parameters = []
+          , statement =
+            """
+            CREATE TABLE IF NOT EXISTS allTypes (
+                nullableInt INTEGER,
+                float REAL NOT NULL,
+                string TEXT NOT NULL,
+                bool INTEGER,
+                posix INTEGER
+            )
+            """
+          }
+        , { parameters = []
           , statement = "DELETE FROM users"
+          }
+        , { parameters = []
+          , statement = "DELETE FROM allTypes"
           }
         ]
 

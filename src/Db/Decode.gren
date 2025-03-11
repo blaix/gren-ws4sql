@@ -2,7 +2,11 @@ module Db.Decode exposing
     ( Decoder
 
     -- Primitives
+    , bool
+    , float
     , int
+    , nullable
+    , posix
     , string
 
     -- OBJECTS
@@ -25,6 +29,7 @@ module Db.Decode exposing
 import Db.Encode
 import Json.Decode
 import Json.Encode
+import Time
 
 
 type Decoder a
@@ -39,17 +44,39 @@ type Error
 -- PRIMITIVES
 
 
+bool : Decoder Bool
+bool =
+    Json.Decode.int
+        -- TODO: handle other values sqlite considers booleans
+        |> Json.Decode.map (\i -> i /= 0)
+        |> Decoder
+
+
 int : Decoder Int
 int =
     Decoder (Json.Decode.int)
 
 
+nullable : Decoder a -> Decoder (Maybe a)
+nullable decoder =
+    Decoder (Json.Decode.nullable (unwrap decoder))
+
+
+float : Decoder Float
+float =
+    Decoder (Json.Decode.float)
+
+
+posix : Decoder Time.Posix
+posix =
+    Json.Decode.int
+        |> Json.Decode.map Time.millisToPosix
+        |> Decoder
+
+
 string : Decoder String
 string =
     Decoder (Json.Decode.string)
-
-
--- TODO: remaining primitive decoders
 
 
 -- OBJECTS
