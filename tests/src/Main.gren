@@ -40,7 +40,7 @@ main =
             run env <|
                 concat
                     [ executeTests connection
-                    -- TODO: transaction tests
+                    , transactionTests connection
                     , getOneTests connection
                     , getMaybeOneTests connection
                     , getAllTests connection
@@ -48,7 +48,7 @@ main =
                     ]
 
 
--- QUERY TESTS
+-- EXECUTE TESTS
 
 
 executeTests : Db.Connection -> Test
@@ -64,6 +64,65 @@ executeTests connection =
     await execute "Execute statement" <| \executeResult ->
         test "returns number of affected rows" <| \_ ->
             Expect.equal 1 executeResult
+
+
+-- TRANSACTION TESTS
+
+
+transactionTests : Db.Connection -> Test
+transactionTests connection =
+    let
+        insertSuccess = 
+            Db.transaction connection
+                [ { statement = "insert into users (id, name) values (1, \"one\")"
+                  , parameters = []
+                  }
+                , { statement = "insert into users (id, name) values (2, \"two\")"
+                  , parameters = []
+                  }
+                ]
+
+        insertFailure =
+            Db.transaction connection
+                [ { statement = "insert into users (id, name) values (1, \"yo\")"
+                  , parameters = []
+                  }
+                , { statement = "insert into users (nope, wrong) values (1, 2)"
+                  , parameters = []
+                  }
+                ]
+
+        get =
+            Db.getAll connection
+                { query = "select * from users order by id asc"
+                , parameters = []
+                , decoder = userDecoder
+                }
+
+        transactionSuccess =
+            reset connection
+                |> Task.andThen (\_ -> insertSuccess)
+                |> Task.andThen (\_ -> get)
+
+        transactionFailure =
+            reset connection
+                |> Task.andThen (\_ -> insertFailure)
+                |> Task.map (\_ -> [])
+                |> Task.onError (\_ -> get)
+    in
+    describe "Transactions"
+        [ await transactionSuccess "successful transaction" <| \result ->
+            test "commits all statements in the transaction" <| \_ ->
+                [ { id = 1, name = "one" }, { id = 2, name = "two" } ]
+                    |> Expect.equal result
+
+        , await transactionFailure "failed transaction" <| \result ->
+            test "does not commit any statements in the transaction" <| \_ ->
+                Expect.equal [] result
+        ]
+
+
+-- QUERY TESTS
 
 
 getOneTests : Db.Connection -> Test
