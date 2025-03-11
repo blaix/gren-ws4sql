@@ -280,9 +280,29 @@ encodeDecodeTests connection =
                     ]
                 }
 
+        insertWithStringBools : Task Db.Error Int
+        insertWithStringBools =
+            Db.execute connection
+                { statement =
+                   """
+                   insert into allTypes (nullableInt, float, string, bool, posix) values
+                       (1, 1.0, "", "TRUE", 1),
+                       (2, 2.0, "", "FALSE", 2)
+                   """
+                , parameters = []
+                }
+
         get : Task Db.Error AllTypes
         get =
             Db.getOne connection
+                { parameters = []
+                , decoder = allTypesDecoder
+                , query = "select * from allTypes order by nullableInt asc"
+                }
+
+        getAll_ : Task Db.Error (Array AllTypes)
+        getAll_ =
+            Db.getAll connection
                 { parameters = []
                 , decoder = allTypesDecoder
                 , query = "select * from allTypes"
@@ -316,6 +336,25 @@ encodeDecodeTests connection =
         , await (task allTypesWithNegatives) "insert and get with falsey values" <| \result ->
             test "encodes and decodes with falsey values" <| \_ ->
                 Expect.equal allTypesWithNegatives result
+        
+        , await (reset connection) "Reset allTypes table" <| \_ ->
+          await insertWithStringBools "Insert TRUE/FALSE rows" <| \_ ->
+          await getAll_ "Get TRUE/FALSE rows" <| \result ->
+            test "successfully decodes TRUE/FALSE as bools" <| \_ ->
+                Expect.equal result
+                    [ { nullableInt = Just 1
+                      , float = 1.0
+                      , string = ""
+                      , bool = True
+                      , posix = Time.millisToPosix 1
+                      }
+                    , { nullableInt = Just 2
+                      , float = 2.0
+                      , string = ""
+                      , bool = False
+                      , posix = Time.millisToPosix 2
+                      }
+                    ]
         ]
 
 

@@ -46,10 +46,20 @@ type Error
 
 bool : Decoder Bool
 bool =
-    Json.Decode.int
-        -- TODO: handle other values sqlite considers booleans
-        |> Json.Decode.map (\i -> i /= 0)
-        |> Decoder
+    Decoder <|
+        -- https://www.sqlite.org/datatype3.html#boolean_datatype
+        Json.Decode.oneOf
+            [ Json.Decode.int
+                |> Json.Decode.map (\i -> i /= 0)
+            , Json.Decode.string
+                |> Json.Decode.andThen
+                    (\s ->
+                        when s is
+                            "TRUE" -> Json.Decode.succeed True
+                            "FALSE" -> Json.Decode.succeed False
+                            _ -> Json.Decode.fail "Got unexpected string in boolean field"
+                    )
+            ]
 
 
 int : Decoder Int
