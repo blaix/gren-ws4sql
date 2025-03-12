@@ -129,21 +129,21 @@ getOneTests : Db.Connection -> Test
 getOneTests connection =
     await (initUsers connection [user1]) "Insert test user for getOne tests" <| \_ ->
         describe "Db.getOne"
-            [ await (getOne connection user1.id) "Get test user" <| \result ->
+            [ await (getOneUser connection user1.id) "Get test user" <| \result ->
                 test "returns 1 user" <| \_ ->
                     Expect.equal user1 result
 
-            , awaitError (getOne connection 99) "Get non-existant user" <| \error ->
+            , awaitError (getOneUser connection 99) "Get non-existant user" <| \error ->
                 test "returns NoResultError" <| \_ ->
                     Expect.equal NoResultError error
 
             , await (initUsers connection [user1, user1]) "Insert duplicate users" <| \_ ->
                 concat
-                    [ awaitError (getOne connection 1) "Get one duplicated user" <| \error ->
+                    [ awaitError (getOneUser connection 1) "Get one duplicated user" <| \error ->
                         test "returns MultipleResultsError" <| \_ ->
                             Expect.equal (MultipleResultsError 2) error
 
-                    , await (getOneCustom connection 1 "select * from users limit 1") "Get one with limit" <| \result ->
+                    , await (getOneUserCustom connection 1 "select * from users limit 1") "Get one with limit" <| \result ->
                         test "returns one instance of user" <| \_ ->
                             Expect.equal user1 result
                     ]
@@ -154,21 +154,21 @@ getMaybeOneTests : Db.Connection -> Test
 getMaybeOneTests connection =
     await (initUsers connection [user1]) "Insert test user for getMaybeOne tests" <| \_ ->
         describe "Db.getOne"
-            [ await (getMaybeOne connection user1.id) "Maybe get test user" <| \result ->
+            [ await (getMaybeOneUser connection user1.id) "Maybe get test user" <| \result ->
                 test "returns Just user" <| \_ ->
                     Expect.equal (Just user1) result
 
-            , await (getMaybeOne connection 99) "Maybe get non-existant user" <| \result ->
+            , await (getMaybeOneUser connection 99) "Maybe get non-existant user" <| \result ->
                 test "returns Nothing" <| \_ ->
                     Expect.equal Nothing result
 
             , await (initUsers connection [user1, user1]) "Insert duplicate users" <| \_ ->
                 concat
-                    [ await (getMaybeOne connection 1) "Maybe get one duplicated user" <| \result ->
+                    [ await (getMaybeOneUser connection 1) "Maybe get one duplicated user" <| \result ->
                         test "returns Nothing" <| \_ ->
                             Expect.equal Nothing result
 
-                    , await (getMaybeOneCustom connection 1 "select * from users limit 1") "Maybe get one with limit" <| \result ->
+                    , await (getMaybeOneUserCustom connection 1 "select * from users limit 1") "Maybe get one with limit" <| \result ->
                         test "returns one instance of user" <| \_ ->
                             Expect.equal (Just user1) result
                     ]
@@ -179,47 +179,20 @@ getAllTests : Db.Connection -> Test
 getAllTests connection =
     describe "Db.getAll tests"
         [ await (reset connection) "with no users" <| \_ ->
-          await (getAll connection) "getAll" <| \result ->
+          await (getAllUsers connection) "getAll" <| \result ->
               test "returns empty array" <| \_ ->
                   Expect.equal [] result
 
         , await (initUsers connection [user1]) "with one user" <| \_ ->
-          await (getAll connection) "getAll" <| \result ->
+          await (getAllUsers connection) "getAll" <| \result ->
               test "returns array with just the user" <| \_ ->
                   Expect.equal [user1] result
 
         , await (initUsers connection [user1, user2]) "with two users" <| \_ ->
-          await (getAll connection) "getAll" <| \result ->
+          await (getAllUsers connection) "getAll" <| \result ->
               test "returns array with both users" <| \_ ->
                   Expect.equal [user1, user2] result
         ]
-
-
--- USERS
-
-
-type alias User =
-    { id : Int
-    , name : String
-    }
-
-
-userDecoder : Decoder User
-userDecoder =
-    Db.Decode.map2
-        (\id name -> { id = id, name = name })
-        (Db.Decode.field "id" Db.Decode.int)
-        (Db.Decode.field "name" Db.Decode.string)
-
-
-user1 : User
-user1 =
-    { id = 1, name = "one" }
-
-
-user2 : User
-user2 =
-    { id = 2, name = "two" }
 
 
 -- ENCODE / DECODE TESTS
@@ -358,6 +331,99 @@ encodeDecodeTests connection =
         ]
 
 
+-- USERS
+
+
+type alias User =
+    { id : Int
+    , name : String
+    }
+
+
+userDecoder : Decoder User
+userDecoder =
+    Db.Decode.map2
+        (\id name -> { id = id, name = name })
+        (Db.Decode.field "id" Db.Decode.int)
+        (Db.Decode.field "name" Db.Decode.string)
+
+
+user1 : User
+user1 =
+    { id = 1, name = "one" }
+
+
+user2 : User
+user2 =
+    { id = 2, name = "two" }
+
+
+insertUsers : Db.Connection -> Array User -> Task Db.Error (Array Int)
+insertUsers connection users =
+    users
+        |> Array.map
+            (\{id, name} ->
+                { statement = "insert into users (id, name) values (:id, :name)"
+                , parameters =
+                    [ { key = "id", value = Db.Encode.int id }
+                    , { key = "name", value = Db.Encode.string name }
+                    ]
+                }
+            )
+        |> Db.transaction connection
+
+
+initUsers : Db.Connection -> Array User -> Task Db.Error (Array Int)
+initUsers connection users =
+    reset connection
+        |> Task.andThen (\_ -> insertUsers connection users)
+
+
+getOneUser : Db.Connection -> Int -> Task Db.Error User
+getOneUser connection id =
+    Db.getOne connection
+        { query = "select * from users where id = :id"
+        , parameters = [{ key = "id", value = Db.Encode.int id }]
+        , decoder = userDecoder
+        }
+
+
+getMaybeOneUser : Db.Connection -> Int -> Task Db.Error (Maybe User)
+getMaybeOneUser connection id =
+    Db.getMaybeOne connection
+        { query = "select * from users where id = :id"
+        , parameters = [{ key = "id", value = Db.Encode.int id }]
+        , decoder = userDecoder
+        }
+
+
+getOneUserCustom : Db.Connection -> Int -> String -> Task Db.Error User
+getOneUserCustom connection id query =
+    Db.getOne connection
+        { query = query
+        , parameters = [{ key = "id", value = Db.Encode.int id }]
+        , decoder = userDecoder
+        }
+
+
+getMaybeOneUserCustom : Db.Connection -> Int -> String -> Task Db.Error (Maybe User)
+getMaybeOneUserCustom connection id query =
+    Db.getMaybeOne connection
+        { query = query
+        , parameters = [{ key = "id", value = Db.Encode.int id }]
+        , decoder = userDecoder
+        }
+
+
+getAllUsers : Db.Connection -> Task Db.Error (Array User)
+getAllUsers connection =
+    Db.getAll connection
+        { query = "select * from users order by id"
+        , parameters = []
+        , decoder = userDecoder
+        }
+
+
 -- HELPERS
 
 
@@ -398,69 +464,4 @@ reset connection =
           }
         ]
 
-
-insertUsers : Db.Connection -> Array User -> Task Db.Error (Array Int)
-insertUsers connection users =
-    users
-        |> Array.map
-            (\{id, name} ->
-                { statement = "insert into users (id, name) values (:id, :name)"
-                , parameters =
-                    [ { key = "id", value = Db.Encode.int id }
-                    , { key = "name", value = Db.Encode.string name }
-                    ]
-                }
-            )
-        |> Db.transaction connection
-
-
-initUsers : Db.Connection -> Array User -> Task Db.Error (Array Int)
-initUsers connection users =
-    reset connection
-        |> Task.andThen (\_ -> insertUsers connection users)
-
-
-getOne : Db.Connection -> Int -> Task Db.Error User
-getOne connection id =
-    Db.getOne connection
-        { query = "select * from users where id = :id"
-        , parameters = [{ key = "id", value = Db.Encode.int id }]
-        , decoder = userDecoder
-        }
-
-
-getMaybeOne : Db.Connection -> Int -> Task Db.Error (Maybe User)
-getMaybeOne connection id =
-    Db.getMaybeOne connection
-        { query = "select * from users where id = :id"
-        , parameters = [{ key = "id", value = Db.Encode.int id }]
-        , decoder = userDecoder
-        }
-
-
-getOneCustom : Db.Connection -> Int -> String -> Task Db.Error User
-getOneCustom connection id query =
-    Db.getOne connection
-        { query = query
-        , parameters = [{ key = "id", value = Db.Encode.int id }]
-        , decoder = userDecoder
-        }
-
-
-getMaybeOneCustom : Db.Connection -> Int -> String -> Task Db.Error (Maybe User)
-getMaybeOneCustom connection id query =
-    Db.getMaybeOne connection
-        { query = query
-        , parameters = [{ key = "id", value = Db.Encode.int id }]
-        , decoder = userDecoder
-        }
-
-
-getAll : Db.Connection -> Task Db.Error (Array User)
-getAll connection =
-    Db.getAll connection
-        { query = "select * from users order by id"
-        , parameters = []
-        , decoder = userDecoder
-        }
 
