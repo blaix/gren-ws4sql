@@ -1,11 +1,16 @@
 module Db.Encode exposing
     ( Value
+
+    -- fields
     , bool
     , float
     , int
     , null
     , posix
     , string
+
+    --helpers
+    , toJson
     )
 
 
@@ -13,38 +18,76 @@ import Json.Encode
 import Time
 
 
-type alias Value
-    = Json.Encode.Value
+type Value
+    = Value
+        { key : String
+        , value : Json.Encode.Value
+        }
 
 
-bool : Bool -> Value
-bool b =
-    if b then
-        Json.Encode.int 1
-    else
-        Json.Encode.int 0
+bool : String -> Bool -> Value
+bool field b =
+    Value
+        { key = field
+        , value =
+            if b then
+                Json.Encode.int 1
+            else
+                Json.Encode.int 0
+        }
 
 
-float : Float -> Value
-float =
-    Json.Encode.float
+float : String -> Float -> Value
+float field f =
+    Value
+        { key = field
+        , value = Json.Encode.float f
+        }
 
 
-int : Int -> Value
-int =
-    Json.Encode.int
+int : String -> Int -> Value
+int field i =
+    Value
+        { key = field
+        , value = Json.Encode.int i
+        }
 
 
-null : Value
-null =
-    Json.Encode.null
+null : String -> Value
+null field =
+    Value
+        { key = field
+        , value = Json.Encode.null
+        }
 
 
-posix : Time.Posix -> Value
-posix =
-    Time.posixToMillis >> Json.Encode.int
+posix : String -> Time.Posix -> Value
+posix field t =
+    Value
+        { key = field
+        , value =
+            Time.posixToMillis t |> Json.Encode.int
+        }
 
 
-string : String -> Value
-string =
-    Json.Encode.string
+string : String -> String -> Value
+string field s =
+    Value
+        { key = field
+        , value = Json.Encode.string s
+        }
+
+
+-- HELPERS
+
+
+toJson : Array Value -> Json.Encode.Value
+toJson values =
+    values
+        |> Array.map unwrap
+        |> Json.Encode.object
+
+
+unwrap : Value -> { key : String, value : Json.Encode.Value }
+unwrap (Value v) =
+    v

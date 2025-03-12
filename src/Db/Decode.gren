@@ -1,7 +1,8 @@
 module Db.Decode exposing
     ( Decoder
+    , FieldDecoder
 
-    -- Primitives
+    -- Fields
     , bool
     , float
     , int
@@ -9,20 +10,22 @@ module Db.Decode exposing
     , posix
     , string
 
-    -- OBJECTS
-    , field
-    , ws4sqlQueryResponse
-    , ws4sqlStatementResponse
-
     -- Mapping
     , map
     , map2
     , map3
     , map4
     , map5
-    , map6
-    , map7
-    , map8
+    -- TODO: more map options
+    --, map6
+    --, map7
+    --, map8
+    --, map9
+    --, ...
+
+    -- ws4sql Helpers
+    , ws4sqlQueryResponse
+    , ws4sqlStatementResponse
     )
 
 
@@ -36,65 +39,162 @@ type Decoder a
     = Decoder (Json.Decode.Decoder a)
 
 
--- TODO: error handling
+type FieldDecoder a
+    = FieldDecoder
+        { name : String
+        , decoder : Json.Decode.Decoder a
+        }
+
+
+-- TODO: better error handling
 type Error
     = Error
 
 
--- PRIMITIVES
+-- FIELDS
 
 
-bool : Decoder Bool
-bool =
+bool : String -> FieldDecoder Bool
+bool name =
+    FieldDecoder
+        { name = name
+        , decoder =
+            -- https://www.sqlite.org/datatype3.html#boolean_datatype
+            Json.Decode.oneOf
+                [ Json.Decode.int
+                    |> Json.Decode.map (\i -> i /= 0)
+                , Json.Decode.string
+                    |> Json.Decode.andThen
+                        (\s ->
+                            when s is
+                                "TRUE" -> Json.Decode.succeed True
+                                "FALSE" -> Json.Decode.succeed False
+                                _ -> Json.Decode.fail "Got unexpected string in boolean field"
+                        )
+                ]
+        }
+
+
+int : String -> FieldDecoder Int
+int name =
+    FieldDecoder
+        { name = name
+        , decoder = Json.Decode.int
+        }
+
+
+float : String -> FieldDecoder Float
+float name =
+    FieldDecoder 
+        { name = name
+        , decoder = Json.Decode.float
+        }
+
+
+posix : String -> FieldDecoder Time.Posix
+posix name =
+    FieldDecoder
+        { name = name
+        , decoder =
+            Json.Decode.map
+                Time.millisToPosix
+                Json.Decode.int
+        }
+
+
+string : String -> FieldDecoder String
+string name =
+    FieldDecoder
+        { name = name
+        , decoder = Json.Decode.string
+        }
+
+
+nullable : FieldDecoder a -> FieldDecoder (Maybe a)
+nullable (FieldDecoder { name, decoder }) =
+    FieldDecoder
+        { name = name
+        , decoder =
+            Json.Decode.nullable decoder
+        }
+
+
+-- MAPPING
+
+
+map : FieldDecoder a -> (a -> b) -> Decoder b
+map (FieldDecoder { name, decoder }) mapper =
     Decoder <|
-        -- https://www.sqlite.org/datatype3.html#boolean_datatype
-        Json.Decode.oneOf
-            [ Json.Decode.int
-                |> Json.Decode.map (\i -> i /= 0)
-            , Json.Decode.string
-                |> Json.Decode.andThen
-                    (\s ->
-                        when s is
-                            "TRUE" -> Json.Decode.succeed True
-                            "FALSE" -> Json.Decode.succeed False
-                            _ -> Json.Decode.fail "Got unexpected string in boolean field"
-                    )
-            ]
+        Json.Decode.map mapper
+            (Json.Decode.field name decoder)
 
 
-int : Decoder Int
-int =
-    Decoder (Json.Decode.int)
+map2 : 
+    FieldDecoder a -> 
+    FieldDecoder b -> 
+    (a -> b -> c) -> 
+    Decoder c
+map2 (FieldDecoder a) (FieldDecoder b) mapper =
+    Decoder <|
+        Json.Decode.map2 mapper
+            (Json.Decode.field a.name a.decoder)
+            (Json.Decode.field b.name b.decoder)
 
 
-nullable : Decoder a -> Decoder (Maybe a)
-nullable decoder =
-    Decoder (Json.Decode.nullable (unwrap decoder))
+map3 : 
+    FieldDecoder a -> 
+    FieldDecoder b -> 
+    FieldDecoder c -> 
+    (a -> b -> c -> d) -> 
+    Decoder d
+map3 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) mapper =
+    Decoder <|
+        Json.Decode.map3 mapper
+            (Json.Decode.field a.name a.decoder)
+            (Json.Decode.field b.name b.decoder)
+            (Json.Decode.field c.name c.decoder)
 
 
-float : Decoder Float
-float =
-    Decoder (Json.Decode.float)
+map4 : 
+    FieldDecoder a -> 
+    FieldDecoder b -> 
+    FieldDecoder c -> 
+    FieldDecoder d -> 
+    (a -> b -> c -> d -> e) -> 
+    Decoder e
+map4 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) (FieldDecoder d) mapper =
+    Decoder <|
+        Json.Decode.map4 mapper
+            (Json.Decode.field a.name a.decoder)
+            (Json.Decode.field b.name b.decoder)
+            (Json.Decode.field c.name c.decoder)
+            (Json.Decode.field d.name d.decoder)
 
 
-posix : Decoder Time.Posix
-posix =
-    Json.Decode.int
-        |> Json.Decode.map Time.millisToPosix
-        |> Decoder
+map5 : 
+    FieldDecoder a -> 
+    FieldDecoder b -> 
+    FieldDecoder c -> 
+    FieldDecoder d -> 
+    FieldDecoder e -> 
+    (a -> b -> c -> d -> e -> f) -> 
+    Decoder f
+map5 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) (FieldDecoder d) (FieldDecoder e) mapper =
+    Decoder <|
+        Json.Decode.map5 mapper
+            (Json.Decode.field a.name a.decoder)
+            (Json.Decode.field b.name b.decoder)
+            (Json.Decode.field c.name c.decoder)
+            (Json.Decode.field d.name d.decoder)
+            (Json.Decode.field e.name e.decoder)
 
 
-string : Decoder String
-string =
-    Decoder (Json.Decode.string)
+-- HELPERS
 
 
--- OBJECTS
-
-
-field : String -> Decoder a -> Decoder a
-field name (Decoder decoder) =
-    Decoder (Json.Decode.field name decoder) 
+unwrap : Decoder a -> Json.Decode.Decoder a
+unwrap (Decoder inner) =
+    inner
 
 
 ws4sqlQueryResponse : Decoder a -> Json.Decode.Decoder (Array a)
@@ -141,61 +241,3 @@ ws4sqlStatementResponse =
             Json.Decode.field "rowsUpdated" Json.Decode.int
 
 
--- RUN DECODERS
-
-
-decode : Decoder a -> Db.Encode.Value -> Result Error a
-decode decoder value =
-    Json.Decode.decodeValue (unwrap decoder) value
-        |> Result.mapError
-            -- TODO: helpful error variants
-            (\error ->
-                Error
-            )
-
-
-unwrap : Decoder a -> Json.Decode.Decoder a
-unwrap (Decoder inner) =
-    inner
-
-
--- MAPPING
-
-map : (a -> b) -> Decoder a -> Decoder b
-map mapper (Decoder decoder) =
-    Decoder (Json.Decode.map mapper decoder)
-
-
-map2 : (a -> b -> c) -> Decoder a -> Decoder b -> Decoder c
-map2 m (Decoder a) (Decoder b) =
-    Decoder (Json.Decode.map2 m a b)
-
-
-map3 : (a -> b -> c -> d) -> Decoder a -> Decoder b -> Decoder c -> Decoder d
-map3 m (Decoder a) (Decoder b) (Decoder c) =
-    Decoder (Json.Decode.map3 m a b c)
-
-
-map4 : (a -> b -> c -> d -> e) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e
-map4 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) =
-    Decoder (Json.Decode.map4 m a b c d)
-
-
-map5 : (a -> b -> c -> d -> e -> f) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f
-map5 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) (Decoder e) =
-    Decoder (Json.Decode.map5 m a b c d e)
-
-
-map6 : (a -> b -> c -> d -> e -> f -> g) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g
-map6 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) (Decoder e) (Decoder f) =
-    Decoder (Json.Decode.map6 m a b c d e f)
-
-
-map7 : (a -> b -> c -> d -> e -> f -> g -> h) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h
-map7 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) (Decoder e) (Decoder f) (Decoder g) =
-    Decoder (Json.Decode.map7 m a b c d e f g)
-
-
-map8 : (a -> b -> c -> d -> e -> f -> g -> h -> i) -> Decoder a -> Decoder b -> Decoder c -> Decoder d -> Decoder e -> Decoder f -> Decoder g -> Decoder h -> Decoder i
-map8 m (Decoder a) (Decoder b) (Decoder c) (Decoder d) (Decoder e) (Decoder f) (Decoder g) (Decoder h) =
-    Decoder (Json.Decode.map8 m a b c d e f g h)

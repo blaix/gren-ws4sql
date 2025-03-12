@@ -57,14 +57,14 @@ init httpPerm { credentials, url } =
 
 type alias Query a =
     { query : String
-    , parameters : Array { key : String, value : Db.Encode.Value }
+    , parameters : Array Db.Encode.Value
     , decoder : Db.Decode.Decoder a
     }
 
 
 type alias Statement =
     { statement : String
-    , parameters : Array { key : String, value : Db.Encode.Value }
+    , parameters : Array Db.Encode.Value
     }
 
 
@@ -88,7 +88,7 @@ getAll (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
                 , value = Json.Encode.string query
                 }
               , { key = "values"
-                , value = Json.Encode.object parameters
+                , value = Db.Encode.toJson parameters
                 }
               ]
             ]
@@ -120,7 +120,7 @@ transaction (Connection { credentials, url, httpPerm }) statements =
                           , value = Json.Encode.string statement
                           }
                         , { key = "values"
-                          , value = Json.Encode.object parameters
+                          , value = Db.Encode.toJson parameters
                           }
                         ]
                     )
