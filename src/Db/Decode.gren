@@ -11,17 +11,15 @@ module Db.Decode exposing
     , string
 
     -- Mapping
+    -- TODO: tests for each map function
     , map
     , map2
     , map3
     , map4
     , map5
-    -- TODO: more map options
-    --, map6
-    --, map7
-    --, map8
-    --, map9
-    --, ...
+    , map6
+    , map7
+    , map8
 
     -- ws4sql Helpers
     , ws4sqlQueryResponse
@@ -162,13 +160,18 @@ map4 :
     FieldDecoder d -> 
     (a -> b -> c -> d -> e) -> 
     Decoder e
-map4 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) (FieldDecoder d) mapper =
-    Decoder <|
-        Json.Decode.map4 mapper
-            (Json.Decode.field a.name a.decoder)
-            (Json.Decode.field b.name b.decoder)
-            (Json.Decode.field c.name c.decoder)
-            (Json.Decode.field d.name d.decoder)
+map4
+    (FieldDecoder a)
+    (FieldDecoder b)
+    (FieldDecoder c)
+    (FieldDecoder d)
+    mapper =
+        Decoder <|
+            Json.Decode.map4 mapper
+                (Json.Decode.field a.name a.decoder)
+                (Json.Decode.field b.name b.decoder)
+                (Json.Decode.field c.name c.decoder)
+                (Json.Decode.field d.name d.decoder)
 
 
 map5 : 
@@ -179,14 +182,110 @@ map5 :
     FieldDecoder e -> 
     (a -> b -> c -> d -> e -> f) -> 
     Decoder f
-map5 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) (FieldDecoder d) (FieldDecoder e) mapper =
-    Decoder <|
-        Json.Decode.map5 mapper
-            (Json.Decode.field a.name a.decoder)
-            (Json.Decode.field b.name b.decoder)
-            (Json.Decode.field c.name c.decoder)
-            (Json.Decode.field d.name d.decoder)
-            (Json.Decode.field e.name e.decoder)
+map5
+    (FieldDecoder a)
+    (FieldDecoder b)
+    (FieldDecoder c)
+    (FieldDecoder d)
+    (FieldDecoder e)
+    mapper =
+        Decoder <|
+            Json.Decode.map5 mapper
+                (Json.Decode.field a.name a.decoder)
+                (Json.Decode.field b.name b.decoder)
+                (Json.Decode.field c.name c.decoder)
+                (Json.Decode.field d.name d.decoder)
+                (Json.Decode.field e.name e.decoder)
+
+
+map6 : 
+    FieldDecoder a -> 
+    FieldDecoder b -> 
+    FieldDecoder c -> 
+    FieldDecoder d -> 
+    FieldDecoder e -> 
+    FieldDecoder f -> 
+    (a -> b -> c -> d -> e -> f -> g) -> 
+    Decoder g
+map6
+    (FieldDecoder a)
+    (FieldDecoder b)
+    (FieldDecoder c)
+    (FieldDecoder d)
+    (FieldDecoder e)
+    (FieldDecoder f)
+    mapper =
+        Decoder <|
+            Json.Decode.map6 mapper
+                (Json.Decode.field a.name a.decoder)
+                (Json.Decode.field b.name b.decoder)
+                (Json.Decode.field c.name c.decoder)
+                (Json.Decode.field d.name d.decoder)
+                (Json.Decode.field e.name e.decoder)
+                (Json.Decode.field f.name f.decoder)
+
+
+map7 : 
+    FieldDecoder a -> 
+    FieldDecoder b -> 
+    FieldDecoder c -> 
+    FieldDecoder d -> 
+    FieldDecoder e -> 
+    FieldDecoder f -> 
+    FieldDecoder g -> 
+    (a -> b -> c -> d -> e -> f -> g -> h) -> 
+    Decoder h
+map7
+    (FieldDecoder a)
+    (FieldDecoder b) 
+    (FieldDecoder c)
+    (FieldDecoder d)
+    (FieldDecoder e)
+    (FieldDecoder f)
+    (FieldDecoder g)
+    mapper =
+        Decoder <|
+            Json.Decode.map7 mapper
+                (Json.Decode.field a.name a.decoder)
+                (Json.Decode.field b.name b.decoder)
+                (Json.Decode.field c.name c.decoder)
+                (Json.Decode.field d.name d.decoder)
+                (Json.Decode.field e.name e.decoder)
+                (Json.Decode.field f.name f.decoder)
+                (Json.Decode.field g.name g.decoder)
+
+
+map8 : 
+    FieldDecoder a -> 
+    FieldDecoder b -> 
+    FieldDecoder c -> 
+    FieldDecoder d -> 
+    FieldDecoder e -> 
+    FieldDecoder f -> 
+    FieldDecoder g -> 
+    FieldDecoder h -> 
+    (a -> b -> c -> d -> e -> f -> g -> h -> i) -> 
+    Decoder i
+map8
+    (FieldDecoder a)
+    (FieldDecoder b)
+    (FieldDecoder c)
+    (FieldDecoder d)
+    (FieldDecoder e)
+    (FieldDecoder f)
+    (FieldDecoder g)
+    (FieldDecoder h)
+    mapper =
+        Decoder <|
+            Json.Decode.map8 mapper
+                (Json.Decode.field a.name a.decoder)
+                (Json.Decode.field b.name b.decoder)
+                (Json.Decode.field c.name c.decoder)
+                (Json.Decode.field d.name d.decoder)
+                (Json.Decode.field e.name e.decoder)
+                (Json.Decode.field f.name f.decoder)
+                (Json.Decode.field g.name g.decoder)
+                (Json.Decode.field h.name h.decoder)
 
 
 -- HELPERS
