@@ -45,6 +45,7 @@ main =
                     , getMaybeOneTests connection
                     , getAllTests connection
                     , encodeDecodeTests connection
+                    , mapTests connection
                     ]
 
 
@@ -328,6 +329,240 @@ encodeDecodeTests connection =
                       , posix = Time.millisToPosix 2
                       }
                     ]
+        ]
+
+
+-- MAP TESTS
+
+
+mapTests : Db.Connection -> Test
+mapTests connection =
+    let
+        get1 =
+            Db.getOne connection
+                { query = "select 1 as one"
+                , parameters = []
+                , decoder =
+                    Db.Decode.map
+                        (Db.Decode.int "one")
+                        (\one -> [ one ])
+                }
+
+        get2 =
+            Db.getOne connection
+                { query = "select 1 as one, 2 as two"
+                , parameters = []
+                , decoder =
+                    Db.Decode.map2
+                        (Db.Decode.int "one")
+                        (Db.Decode.int "two")
+                        (\one two -> [ one, two ])
+                }
+
+        get3 =
+            Db.getOne connection
+                { query = "select 1 as one, 2 as two, 3 as three"
+                , parameters = []
+                , decoder =
+                    Db.Decode.map3
+                        (Db.Decode.int "one")
+                        (Db.Decode.int "two")
+                        (Db.Decode.int "three")
+                        (\one two three -> [ one, two, three ])
+                }
+
+        get4 =
+            Db.getOne connection
+                { query = 
+                    """
+                    select
+                        1 as one,
+                        2 as two,
+                        3 as three,
+                        4 as four
+                    """
+                , parameters = []
+                , decoder =
+                    Db.Decode.map4
+                        (Db.Decode.int "one")
+                        (Db.Decode.int "two")
+                        (Db.Decode.int "three")
+                        (Db.Decode.int "four")
+                        (\one two three four -> 
+                            [ one
+                            , two
+                            , three
+                            , four
+                            ]
+                        )
+                }
+
+        get5 =
+            Db.getOne connection
+                { query = 
+                    """
+                    select
+                        1 as one,
+                        2 as two,
+                        3 as three,
+                        4 as four,
+                        5 as five
+                    """
+                , parameters = []
+                , decoder =
+                    Db.Decode.map5
+                        (Db.Decode.int "one")
+                        (Db.Decode.int "two")
+                        (Db.Decode.int "three")
+                        (Db.Decode.int "four")
+                        (Db.Decode.int "five")
+                        (\one two three four five -> 
+                            [ one
+                            , two
+                            , three
+                            , four
+                            , five
+                            ]
+                        )
+                }
+
+        get6 =
+            Db.getOne connection
+                { query = 
+                    """
+                    select
+                        1 as one,
+                        2 as two,
+                        3 as three,
+                        4 as four,
+                        5 as five,
+                        6 as six
+                    """
+                , parameters = []
+                , decoder =
+                    Db.Decode.map6
+                        (Db.Decode.int "one")
+                        (Db.Decode.int "two")
+                        (Db.Decode.int "three")
+                        (Db.Decode.int "four")
+                        (Db.Decode.int "five")
+                        (Db.Decode.int "six")
+                        (\one two three four five six -> 
+                            [ one
+                            , two
+                            , three
+                            , four
+                            , five
+                            , six
+                            ]
+                        )
+                }
+
+        get7 =
+            Db.getOne connection
+                { query = 
+                    """
+                    select
+                        1 as one,
+                        2 as two,
+                        3 as three,
+                        4 as four,
+                        5 as five,
+                        6 as six,
+                        7 as seven
+                    """
+                , parameters = []
+                , decoder =
+                    Db.Decode.map7
+                        (Db.Decode.int "one")
+                        (Db.Decode.int "two")
+                        (Db.Decode.int "three")
+                        (Db.Decode.int "four")
+                        (Db.Decode.int "five")
+                        (Db.Decode.int "six")
+                        (Db.Decode.int "seven")
+                        (\one two three four five six seven -> 
+                            [ one
+                            , two
+                            , three
+                            , four
+                            , five
+                            , six
+                            , seven
+                            ]
+                        )
+                }
+
+        get8 =
+            Db.getOne connection
+                { query = 
+                    """
+                    select
+                        1 as one,
+                        2 as two,
+                        3 as three,
+                        4 as four,
+                        5 as five,
+                        6 as six,
+                        7 as seven,
+                        8 as eight
+                    """
+                , parameters = []
+                , decoder =
+                    Db.Decode.map8
+                        (Db.Decode.int "one")
+                        (Db.Decode.int "two")
+                        (Db.Decode.int "three")
+                        (Db.Decode.int "four")
+                        (Db.Decode.int "five")
+                        (Db.Decode.int "six")
+                        (Db.Decode.int "seven")
+                        (Db.Decode.int "eight")
+                        (\one two three four five six seven eight -> 
+                            [ one
+                            , two
+                            , three
+                            , four
+                            , five
+                            , six
+                            , seven
+                            , eight
+                            ]
+                        )
+                }
+    in
+    describe "map tests"
+        [ await get1 "get one field" <| \result ->
+            test "map" <| \_ ->
+                Expect.equal [1] result
+
+        , await get2 "get two fields" <| \result ->
+            test "map2" <| \_ ->
+                Expect.equal [1, 2] result
+
+        , await get3 "get three fields" <| \result ->
+            test "map3" <| \_ ->
+                Expect.equal [1, 2, 3] result
+
+        , await get4 "get four fields" <| \result ->
+            test "map4" <| \_ ->
+                Expect.equal [1, 2, 3, 4] result
+
+        , await get5 "get five fields" <| \result ->
+            test "map5" <| \_ ->
+                Expect.equal [1, 2, 3, 4, 5] result
+
+        , await get6 "get six fields" <| \result ->
+            test "map6" <| \_ ->
+                Expect.equal [1, 2, 3, 4, 5, 6] result
+
+        , await get7 "get seven fields" <| \result ->
+            test "map7" <| \_ ->
+                Expect.equal [1, 2, 3, 4, 5, 6, 7] result
+
+        , await get8 "get eight fields" <| \result ->
+            test "map8" <| \_ ->
+                Expect.equal [1, 2, 3, 4, 5, 6, 7, 8] result
         ]
 
 
