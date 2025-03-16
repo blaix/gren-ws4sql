@@ -23,19 +23,13 @@ import Time
 -- RUNNER
 
 
-config =
-    { credentials = Nothing
-    , url = "http://localhost:12321/test"
-    }
-
-
 main : Node.SimpleProgram a
 main =
     Node.defineSimpleProgram <| \env ->
         Init.await HttpClient.initialize <| \httpPerm ->
             let
                 connection =
-                    connect httpPerm
+                    Db.init httpPerm "http://localhost:12321/test"
             in
             run env <|
                 concat
@@ -660,11 +654,6 @@ getAllUsers connection =
 
 
 -- HELPERS
-
-
-connect : HttpClient.Permission -> Db.Connection
-connect permission =
-    Db.init permission config
 
 
 reset : Db.Connection -> Task Db.Error (Array Int)

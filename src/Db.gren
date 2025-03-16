@@ -3,6 +3,7 @@ module Db exposing
     -- Initialization
     ( Connection
     , init
+    , withCredentials
 
     -- Queries
     , Query
@@ -29,12 +30,6 @@ import Task exposing (Task)
 -- INITIALIZATION
 
 
-type alias Config =
-    { credentials : Maybe { username : String, password : String }
-    , url : String
-    }
-
-
 type Connection =
     Connection
         { credentials : Maybe { username : String, password : String }
@@ -43,12 +38,20 @@ type Connection =
         }
 
 
-init : HttpClient.Permission -> Config -> Connection
-init httpPerm { credentials, url } =
+init : HttpClient.Permission -> String -> Connection
+init httpPerm url =
     Connection
-        { credentials = credentials
-        , url = url
+        { credentials = Nothing
         , httpPerm = httpPerm
+        , url = url
+        }
+
+
+withCredentials : { username : String, password : String } -> Connection -> Connection
+withCredentials creds (Connection config) =
+    Connection
+        { config
+            | credentials = Just creds
         }
 
 
