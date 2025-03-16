@@ -4,7 +4,7 @@ test:
         fd .+\.gren | entr just build-and-run-tests
 
 test-db:
-    mkdir -p tests/db && \
+    (rm tests/db/* || mkdir -p tests/db) && \
         npx --yes ws4sql --bind-host=localhost --quick-db=tests/db/test
 
 build-and-run-tests:
