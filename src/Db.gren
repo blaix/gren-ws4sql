@@ -99,10 +99,6 @@ getAll (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
         in
         HttpClient.post url
             |> HttpClient.withJsonBody json
-            -- TODO: replace expectJson usage with expectString
-            -- so I can use my own Decode.decode function for improved error handling.
-            -- Currently you'll get confusing error messages about the internal json
-            -- decoders if you get an unexpected response body.
             |> HttpClient.expectJson decodeResponse
             |> HttpClient.send httpPerm
             |> Task.mapError mapHttpError
@@ -226,14 +222,8 @@ type Error
 
 
 mapHttpError : HttpClient.Error a -> Error
-mapHttpError error =
-    when error is
-        BadStatus response ->
-            -- TODO: figure out if/how I can get a string here without debug
-            -- Can/Should the HttpClient.Error type change the BadStatus variant
-            -- from `BadStatus (Response a)` to `BadStatus (Response Bytes)`?
-            Error (Debug.toString response.data)
-
-        _ ->
-            Error (HttpClient.errorToString error)
-        
+mapHttpError =
+    -- When https://github.com/gren-lang/node/issues/28 is fixed, improve this
+    -- by matching on BadStatus to parse the "error" from the response body.
+    -- See https://germ.gitbook.io/ws4sqlite/documentation/errors
+    HttpClient.errorToString >> Error

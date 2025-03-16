@@ -43,7 +43,6 @@ type FieldDecoder a
         }
 
 
--- TODO: better error handling
 type Error
     = Error
 
@@ -312,8 +311,6 @@ ws4sqlQueryResponse decoder =
     --     }
     Json.Decode.map Array.flatten <|
         Json.Decode.field "results" <|
-            -- TODO: handle success: false
-            -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
             Json.Decode.array <|
                 Json.Decode.field "resultSet" <|
                     Json.Decode.array <|
@@ -333,8 +330,6 @@ ws4sqlStatementResponse =
     --          ]
     --     }
     Json.Decode.field "results" <|
-        -- TODO: handle success: false
-        -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
         Json.Decode.array <|
             Json.Decode.field "rowsUpdated" Json.Decode.int
 
