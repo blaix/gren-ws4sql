@@ -30,6 +30,9 @@ main =
             let
                 connection =
                     Db.init httpPerm "http://localhost:12321/test"
+
+                connectionWithAuth =
+                    Db.init httpPerm "http://localhost:12322/test-with-auth"
             in
             run env <|
                 concat
@@ -40,6 +43,7 @@ main =
                     , getAllTests connection
                     , encodeDecodeTests connection
                     , mapTests connection
+                    , authTests connectionWithAuth
                     ]
 
 
@@ -557,6 +561,50 @@ mapTests connection =
         , await get8 "get eight fields" <| \result ->
             test "map8" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5, 6, 7, 8] result
+        ]
+
+
+-- AUTH TESTS
+
+
+authTests : Db.Connection -> Test
+authTests connection =
+    let
+        execute =
+            Db.execute connection
+                { statement = "select 1"
+                , parameters = []
+                }
+
+        connectionWithAuth =
+            connection
+                |> Db.withAuth
+                    -- see Justfile
+                    { user = "myuser"
+                    , password = "mypass"
+                    }
+
+        executeWithAuth =
+            Db.execute connectionWithAuth
+                { statement = "select 1"
+                , parameters = []
+                }
+    in
+    describe "Auth tests"
+        [ awaitError execute "Execute statement when auth is required" <| \result ->
+            test "results in authentication error" <| \_ ->
+                when result is
+                    Error _ ->
+                        Expect.pass
+
+                    _ ->
+                        Expect.fail <|
+                            "Did not fail with expected error variant: " ++
+                            Debug.toString result
+        
+        , await executeWithAuth "Execute statement with auth" <| \result ->
+            test "succeeds without authentication error" <| \_ ->
+                Expect.equal 0 result
         ]
 
 

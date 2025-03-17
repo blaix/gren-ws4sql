@@ -1,0 +1,5 @@
+database:
+  path: "tests/db/test-with-auth.db"
+auth:
+  mode: INLINE
+  byQuery: SELECT 1 FROM auth WHERE user = :user AND password = :password

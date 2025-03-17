@@ -3,7 +3,7 @@ module Db exposing
     -- Initialization
     ( Connection
     , init
-    , withCredentials
+    , withAuth
 
     -- Queries
     , Query
@@ -32,7 +32,7 @@ import Task exposing (Task)
 
 type Connection =
     Connection
-        { credentials : Maybe { username : String, password : String }
+        { credentials : Maybe { user : String, password : String }
         , url : String
         , httpPerm : HttpClient.Permission
         }
@@ -47,8 +47,8 @@ init httpPerm url =
         }
 
 
-withCredentials : { username : String, password : String } -> Connection -> Connection
-withCredentials creds (Connection config) =
+withAuth : { user : String, password : String } -> Connection -> Connection
+withAuth creds (Connection config) =
     Connection
         { config
             | credentials = Just creds
@@ -171,7 +171,7 @@ toMaybeSingleResultTask rows =
 
 
 toRequestJson :
-    Maybe { username : String, password : String } ->
+    Maybe { user : String, password : String } ->
     Array (Array { key : String, value : Json.Encode.Value }) ->
     Json.Encode.Value
 toRequestJson credentials queries =
@@ -194,17 +194,17 @@ toRequestJson credentials queries =
 
 
 withCreds : 
-    Maybe { username : String, password : String } ->
+    Maybe { user : String, password : String } ->
     Array { key : String, value : Json.Encode.Value } -> 
     Array { key : String, value : Json.Encode.Value }
 withCreds credentials =
     Array.append <|
         when credentials is
-            Just { username, password } ->
+            Just { user, password } ->
                 [ { key = "credentials"
                   , value =
                     Json.Encode.object
-                        [ { key = "username", value = Json.Encode.string username }
+                        [ { key = "user", value = Json.Encode.string user }
                         , { key = "password", value = Json.Encode.string password }
                         ]
                   }
