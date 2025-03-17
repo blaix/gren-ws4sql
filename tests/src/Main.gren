@@ -1,9 +1,12 @@
 module Main exposing (main)
 
+import Bytes
 import Db exposing (Error(..))
 import Db.Decode exposing (Decoder)
 import Db.Encode
 import Expect
+import FileSystem
+import FileSystem.Path as Path exposing (Path)
 import HttpClient
 import Init
 import Node
@@ -20,6 +23,11 @@ import Test.Runner.Effectful exposing
 import Time
 
 
+logPath : Path
+logPath =
+    Path.fromPosixString "db/test.log"
+
+
 -- RUNNER
 
 
@@ -27,24 +35,32 @@ main : Node.SimpleProgram a
 main =
     Node.defineSimpleProgram <| \env ->
         Init.await HttpClient.initialize <| \httpPerm ->
+        Init.await FileSystem.initialize <| \fsPermission ->
             let
                 connection =
                     Db.init httpPerm "http://localhost:12321/test"
 
                 connectionWithAuth =
                     Db.init httpPerm "http://localhost:12322/test-with-auth"
+
+                seedLog =
+                    FileSystem.writeFile fsPermission
+                        (Bytes.fromString "existing log line\n")
+                        logPath
             in
             run env <|
-                concat
-                    [ executeTests connection
-                    , transactionTests connection
-                    , getOneTests connection
-                    , getMaybeOneTests connection
-                    , getAllTests connection
-                    , encodeDecodeTests connection
-                    , mapTests connection
-                    , authTests connectionWithAuth
-                    ]
+                await seedLog "Seed log lines" <| \_ ->
+                    concat
+                        [ executeTests connection
+                        , transactionTests connection
+                        , getOneTests connection
+                        , getMaybeOneTests connection
+                        , getAllTests connection
+                        , encodeDecodeTests connection
+                        , mapTests connection
+                        , authTests connectionWithAuth
+                        , loggingTests fsPermission connection
+                        ]
 
 
 -- EXECUTE TESTS
@@ -562,6 +578,73 @@ mapTests connection =
             test "map8" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5, 6, 7, 8] result
         ]
+
+
+-- LOGGING TESTS
+
+
+loggingTests : FileSystem.Permission -> Db.Connection -> Test
+loggingTests fsPermission connection =
+    let
+        con =
+            Db.withLogFile fsPermission logPath connection
+
+        execute =
+            Db.execute con
+                { statement = 
+                    """
+                    insert into users (id, name)
+                    values (:id, :name)
+                    """
+                , parameters = 
+                    [ Db.Encode.int "id" 12321
+                    , Db.Encode.string "name" "HOTDOGS"
+                    ]
+                }
+
+        query =
+            Db.getOne con
+                { query = "select 42 as everything"
+                , parameters = []
+                , decoder = 
+                    Db.Decode.map
+                        (Db.Decode.int "everything")
+                        (\i -> i)
+                }
+
+        readLogFile =
+            FileSystem.readFile fsPermission logPath
+                |> Task.map Bytes.toString
+                |> Task.map (Maybe.withDefault "BYTES DECODING FAILED")
+    in
+    await execute "Execute with logging" <| \executeResult ->
+    await query "Query with logging" <| \queryResult ->
+    await readLogFile "Read log file" <| \logContents ->
+        -- let
+        --     _ =
+        --         Debug.log "log" logContents
+        -- in
+        describe "Db connection with logging enabled"
+            [ test "Executes statements normally" <| \_ ->
+                Expect.equal 1 executeResult
+            , test "Executes queries normally" <| \_ ->
+                Expect.equal 42 queryResult
+            , test "Logs requests" <| \_ ->
+                [ String.contains "insert into users" logContents
+                , String.contains "12321" logContents
+                , String.contains "HOTDOGS" logContents
+                , String.contains "select 42 as everything" logContents
+                ]
+                    |> Expect.equalArrays
+                        [ True
+                        , True
+                        , True
+                        , True
+                        ]
+            , test "Does not overwrite existing log lines" <| \_ ->
+                String.contains "existing log line" logContents
+                    |> Expect.equal True
+            ]
 
 
 -- AUTH TESTS

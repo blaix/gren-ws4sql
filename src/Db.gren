@@ -4,6 +4,10 @@ module Db exposing
     ( Connection
     , init
     , withAuth
+    , withLogFile
+    -- After we have a way to open write stream
+    -- without overwriting existing file contents:
+    --, withLogStream
 
     -- Queries
     , Query
@@ -19,12 +23,17 @@ module Db exposing
     )
 
 
+import Bytes exposing (Bytes)
 import Db.Encode
 import Db.Decode
+import FileSystem
+import FileSystem.Path exposing (Path)
 import HttpClient exposing (Error(..), Response)
 import Json.Encode
 import Json.Decode
+import Stream
 import Task exposing (Task)
+import Time exposing (Month(..))
 
 
 -- INITIALIZATION
@@ -35,6 +44,7 @@ type Connection =
         { credentials : Maybe { user : String, password : String }
         , url : String
         , httpPerm : HttpClient.Permission
+        , logFile : Maybe { permission : FileSystem.Permission, path : Path }
         }
 
 
@@ -42,6 +52,7 @@ init : HttpClient.Permission -> String -> Connection
 init httpPerm url =
     Connection
         { credentials = Nothing
+        , logFile = Nothing
         , httpPerm = httpPerm
         , url = url
         }
@@ -52,6 +63,18 @@ withAuth creds (Connection config) =
     Connection
         { config
             | credentials = Just creds
+        }
+
+
+withLogFile : FileSystem.Permission -> Path -> Connection -> Connection
+withLogFile fsPerm path (Connection config) =
+    Connection
+        { config
+            | logFile = 
+                Just
+                    { permission = fsPerm
+                    , path = path
+                    }
         }
 
 
@@ -84,7 +107,7 @@ getMaybeOne connection query =
 
 
 getAll : Connection -> Query a -> Task Error (Array a)
-getAll (Connection { credentials, url, httpPerm }) { query, parameters, decoder } =
+getAll (Connection { credentials, url, httpPerm, logFile }) { query, parameters, decoder } =
     let
         json =
             [ [ { key = "query"
@@ -100,16 +123,20 @@ getAll (Connection { credentials, url, httpPerm }) { query, parameters, decoder 
         decodeResponse =
             Db.Decode.ws4sqlQueryResponse decoder
         in
-        HttpClient.post url
-            |> HttpClient.withJsonBody json
-            |> HttpClient.expectJson decodeResponse
-            |> HttpClient.send httpPerm
+        tryLog { logFile = logFile, url = url, json = json }
+            |> Task.andThen
+                (\_ ->
+                    HttpClient.post url
+                        |> HttpClient.withJsonBody json
+                        |> HttpClient.expectJson decodeResponse
+                        |> HttpClient.send httpPerm
+                )
             |> Task.mapError mapHttpError
             |> Task.map .data
 
 
 transaction : Connection -> Array Statement -> Task Error (Array Int)
-transaction (Connection { credentials, url, httpPerm }) statements =
+transaction (Connection { credentials, url, httpPerm, logFile }) statements =
     let
         json =
             statements
@@ -124,14 +151,14 @@ transaction (Connection { credentials, url, httpPerm }) statements =
                         ]
                     )
                 |> toRequestJson credentials
-
-        -- _ =
-        --     Debug.log "query" (Json.Encode.encode 0 json)
     in
-    HttpClient.post url
-        |> HttpClient.withJsonBody json
-        |> HttpClient.expectJson Db.Decode.ws4sqlStatementResponse
-        |> HttpClient.send httpPerm
+    tryLog { logFile = logFile, url = url, json = json }
+        |> Task.andThen (\_ ->
+            HttpClient.post url
+                |> HttpClient.withJsonBody json
+                |> HttpClient.expectJson Db.Decode.ws4sqlStatementResponse
+                |> HttpClient.send httpPerm
+            )
         |> Task.mapError mapHttpError
         |> Task.map .data
 
@@ -143,6 +170,85 @@ execute connection statement =
 
 
 -- HELPERS
+
+
+tryLog : 
+    { logFile : Maybe { permission : FileSystem.Permission, path : Path }
+    , url : String
+    , json : Json.Encode.Value
+    } ->
+    Task x {}
+tryLog { logFile, url, json } =
+    when logFile is
+        Just { permission, path } ->
+            Time.now
+                |> Task.map toIsoString
+                |> Task.andThen
+                    (\time ->
+                        "{\"time\":\"" ++ time ++ "\","
+                            |> String.append ("\"url\":\"" ++ url ++ "\",")
+                            |> String.append "\"request\":"
+                            |> String.append (Json.Encode.encode 0 json)
+                            |> String.append "}\n"
+                            |> Bytes.fromString
+                            |> Task.succeed
+                    )
+                |> Task.andThen 
+                    (\line -> 
+                        FileSystem.appendToFile permission line path
+                    )
+                |> Task.map (\_ -> {})
+                |> Task.onError (\_ -> Task.succeed {})
+
+        Nothing ->
+            Task.succeed {}
+
+
+toIsoString : Time.Posix -> String
+toIsoString time =
+    let
+        year =
+            Time.toYear Time.utc time
+                |> String.fromInt
+
+        month =
+            when (Time.toMonth Time.utc time) is
+                Jan -> "01"
+                Feb -> "02"
+                Mar -> "03"
+                Apr -> "04"
+                May -> "05"
+                Jun -> "06"
+                Jul -> "07"
+                Aug -> "08"
+                Sep -> "09"
+                Oct -> "10"
+                Nov -> "11"
+                Dec -> "12"
+
+        day =
+            Time.toDay Time.utc time
+                |> String.fromInt
+                |> String.padLeft 2 '0'
+
+        hour =
+            Time.toHour Time.utc time
+                |> String.fromInt
+                |> String.padLeft 2 '0'
+
+        minute =
+            Time.toMinute Time.utc time
+                |> String.fromInt
+                |> String.padLeft 2 '0'
+
+        second =
+            Time.toSecond Time.utc time
+                |> String.fromInt
+                |> String.padLeft 2 '0'
+    in
+    -- YYYY-MM-DDTHH:MM:SSZ
+    year ++ "-" ++ month ++ "-" ++ day ++ "T" ++
+    hour ++ ":" ++ minute ++ ":" ++ second ++ "Z"
 
 
 toSingleResultTask : Array a -> Task Error a

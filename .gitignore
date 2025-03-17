@@ -2,3 +2,4 @@
 docs.json
 tests/app
 tests/db/*.db*
+tests/db/*.log
