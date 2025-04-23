@@ -2,21 +2,13 @@
 
 Use sqlite entirely in [Gren](https://gren-lang.org/) without ports via [ws4sql](https://github.com/proofrock/ws4sqlite).
 
-Note: this package expects the [ws4sql](https://github.com/proofrock/ws4sqlite/tree/fork/ws4sql) fork of ws4sqlite.
-If you're using the [npm package](https://github.com/blaix/ws4sql-npm/), you're all set.
-Otherwise, check the [github releases](https://github.com/proofrock/ws4sqlite/releases) of ws4sqlite for the latest ws4sql version (0.17.x).
-
 ## Usage Example
 
-Start a ws4sql database server:
+Start a ws4sql database server (this will create the sqlite db if it doesn't exist):
 
 ```bash
-npx ws4sql --quick-db mydatabase.db
+npx ws4sql --quick-db /path/to/mydatabase.db
 ```
-
-This will create `mydatabase.db` if it doesn't exist and start a server available at `http://localhost:12321/mydatabase`.
-
-_See docs for [the npm package](https://github.com/blaix/ws4sql-npm/) and [ws4sql itself](https://github.com/proofrock/ws4sqlite/tree/fork/ws4sql) for details on running the server._
 
 Then you can write code like:
 
@@ -48,4 +40,10 @@ getUser httpPerm userId =
         }
 ```
 
+## More Info
+
 See the [package docs](https://packages.gren-lang.org/package/blaix/gren-ws4sql) for full usage details.
+
+Running `npx ws4sql --quick-db` as in the example above lets you try out ws4sql without installing or configuring anything.
+For full details on installing, configuring, and running ws4sql, see [the ws4sql-npm package](https://github.com/blaix/ws4sql-npm/) and [the ws4sqlite repo](https://github.com/proofrock/ws4sqlite).
+Note: this package expects the [ws4sql fork of ws4sqlite](https://github.com/proofrock/ws4sqlite/tree/fork/ws4sql) (this is what is installed by the npm package).
