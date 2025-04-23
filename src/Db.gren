@@ -67,7 +67,8 @@ type Connection =
 
 {-| Connect to a ws4sql server.
 
-ws4sql uses HTTP as its protocol so you must grant permission with HttpClient.Permission
+ws4sql uses HTTP as its protocol so you must grant permission with
+[HttpClient.Permission](https://packages.gren-lang.org/package/gren-lang/node/version/latest/module/HttpClient#Permission)
 
 The String is the server url and by default is
 `http://localhost:12321/[dbname]` where `[dbname]` is the database name
@@ -85,12 +86,10 @@ init httpPerm url =
         }
 
 
-{-| Update a connection to use authentication.
+{-| Update a connection to use [authentication](https://germ.gitbook.io/ws4sqlite/security#authentication).
 
     Db.init httpPerm "http://localhost:12321"
         |> Db.withAuth { user = "myuser", password = "mypass" }
-
-See [docs for authentication](https://germ.gitbook.io/ws4sqlite/security#authentication).
 -}
 withAuth : { user : String, password : String } -> Connection -> Connection
 withAuth creds (Connection config) =
@@ -122,17 +121,17 @@ withLogFile fsPerm path (Connection config) =
 -- QUERIES
 
 
-{-| A query for pulling one or more records from a database.
+{-| A query for pulling one or more values from a database.
 
-This is the record used for `get*` functions below.
+This is the record used for the `get*` functions below.
 
 The query string can contain parameters prefixed with a colon.
 For example: `"select * from user where id = :id"`.
-They will be replaced with [Encoder](Db.Encoder) values in the `parameters` array.
+They will be replaced with [Encoder](Db.Encode) values in the `parameters` array.
 
 _You should always use parameter encoding instead of direct string manipulation to avoid sql injection attacks._
 
-The resulting data will be turned into a Gren value using the [Decoder](Db.Decode) in the `decoder` field.
+The resulting data will be turned into a Gren value (or array of values) using the [Decoder](Db.Decode) in the `decoder` field.
 -}
 type alias Query a =
     { query : String
@@ -141,11 +140,11 @@ type alias Query a =
     }
 
 
-{-| A statement for executing sql without returning any records.
+{-| A statement for executing sql that does not return any values.
 
-The statement can contain parameters prefixed with a colon.
+Just like queries, the statement can contain parameters prefixed with a colon.
 For example: `"insert into user (id, name) values (:id, :name)"`.
-They will be replaced with [Encoder](Db.Encoder) values in the `parameters` array.
+They will be replaced with [Encoder](Db.Encode) values in the `parameters` array.
 
 _You should always use parameter encoding instead of direct string manipulation to avoid sql injection attacks._
 -}
@@ -155,9 +154,9 @@ type alias Statement =
     }
 
 
-{-| Run a query that should return exactly one record.
+{-| Run a query that should return exactly one result.
 
-Queries that result in zero or more than one records will result in an error.
+Queries with zero or more than one result will result in an error.
 
     Db.getOne connection
         { query = "select * from users where id = :id"
@@ -175,7 +174,9 @@ getOne connection query =
         |> Task.andThen toSingleResultTask
 
 
-{-| Run a query that should result in maybe one record.
+{-| Run a query that should have zero or one result.
+
+The resolved value will be a `Maybe` holding `Nothing` or the result of the `decoder`.
     
     Db.getMaybeOne connection
         { query = "select * from users where id = :id"
@@ -193,7 +194,9 @@ getMaybeOne connection query =
         |> Task.andThen toMaybeSingleResultTask
 
 
-{-| Run a query that should result in an array of records.
+{-| Run a query that should have zero or more results.
+
+The resolved value will be an array of values, each derived from the `decoder`.
     
     Db.getAll connection
         { query = "select * from users"

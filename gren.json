@@ -2,7 +2,7 @@
     "type": "package",
     "platform": "node",
     "name": "blaix/gren-ws4sql",
-    "summary": "Gren API for ws4sql(ite)",
+    "summary": "Use sqlite entirely in Gren via ws4sql",
     "license": "BSD-3-Clause",
     "version": "1.0.0",
     "exposed-modules": [

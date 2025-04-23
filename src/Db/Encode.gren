@@ -104,6 +104,8 @@ The database field should be an INTEGER type.
 It will be stored as the number of milliseconds since 1970 January 1 at 00:00:00 UTC (it was a Thursday).
 
     Db.Encode.posix "myDateField" (Time.millisToPosix 0)
+
+See [Db.Decode.posix](Db.Decode#posix)
 -}
 posix : String -> Time.Posix -> Value
 posix field t =

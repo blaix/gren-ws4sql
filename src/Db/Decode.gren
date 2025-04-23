@@ -31,15 +31,35 @@ These are typically used in the `Db.get*` functions via the `decoder` field,
 where the string value matches the name of the field in the query.
 For example:
 
-    Db.getAll connection
-        { query = "select * from users"
-        , parameters = []
+    -- Assuming a table with id INTEGER, name TEXT
+    Db.getOne connection
+        { query = "select * from users where id = :id"
+        , parameters = [ Db.Encode.int 1 ]
         , decoder = 
             Db.Decode.map2
                 (Db.Decode.int "id")
                 (Db.Decode.string "name")
                 (\id name -> { id = id, name = name })
         }
+
+@docs Decoder, FieldDecoder
+
+## Fields
+
+@docs string, int, float, bool, posix, maybe
+
+## Mapping
+
+Use these map functions to turn one or more field decoders into a full decoder.
+
+@docs map, map2, map3, map4, map5, map6, map7, map8
+
+## Util
+
+You shouldn't need these unless you are bypassing this package's API
+to interact with the ws4sql server directly.
+
+@docs ws4sqlQueryResponse, ws4sqlStatementResponse
 -}
 
 import Db.Encode
@@ -48,10 +68,18 @@ import Json.Encode
 import Time
 
 
+{-| A decoder for a full record.
+
+This is what's passed to the `decoder` field.
+-}
 type Decoder a
     = Decoder (Json.Decode.Decoder a)
 
 
+{-| A decoder for an individual field.
+
+This is what's passed to your [map](#mapping) functions.
+-}
 type FieldDecoder a
     = FieldDecoder
         { name : String
@@ -59,6 +87,8 @@ type FieldDecoder a
         }
 
 
+{-| Result of a failed attempt to decode.
+-}
 type Error
     = Error
 
@@ -66,6 +96,8 @@ type Error
 -- FIELDS
 
 
+{-| Decode a boolean field.
+-}
 bool : String -> FieldDecoder Bool
 bool name =
     FieldDecoder
@@ -87,6 +119,8 @@ bool name =
         }
 
 
+{-| Decode an integer field.
+-}
 int : String -> FieldDecoder Int
 int name =
     FieldDecoder
@@ -95,6 +129,8 @@ int name =
         }
 
 
+{-| Decode a float field.
+-}
 float : String -> FieldDecoder Float
 float name =
     FieldDecoder 
@@ -103,6 +139,11 @@ float name =
         }
 
 
+{-| Decode an integer field into a Time.Posix value.
+
+The integer in the database should represent the number of milliseconds since 1970 January 1 at 00:00:00 UTC.
+(See [Db.Encode.posix](Db.Encode#posix).
+-}
 posix : String -> FieldDecoder Time.Posix
 posix name =
     FieldDecoder
@@ -114,6 +155,8 @@ posix name =
         }
 
 
+{-| Decode a string field.
+-}
 string : String -> FieldDecoder String
 string name =
     FieldDecoder
@@ -121,7 +164,13 @@ string name =
         , decoder = Json.Decode.string
         }
 
+{-| Decode a nullable field in the database.
 
+The first parameter is the decoder function for the field type if the value is not null.
+For example, to decode a nullable INTEGER field:
+
+    Db.Decode.maybe Db.Decode.int "myField"
+-}
 maybe : (String -> FieldDecoder a) -> String -> FieldDecoder (Maybe a)
 maybe toDecoder fieldName =
     let
@@ -138,13 +187,16 @@ maybe toDecoder fieldName =
 -- MAPPING
 
 
+{-| Map a single field.
+-}
 map : FieldDecoder a -> (a -> b) -> Decoder b
 map (FieldDecoder { name, decoder }) mapper =
     Decoder <|
         Json.Decode.map mapper
             (Json.Decode.field name decoder)
 
-
+{-| Map 2 fields.
+-}
 map2 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
@@ -157,6 +209,8 @@ map2 (FieldDecoder a) (FieldDecoder b) mapper =
             (Json.Decode.field b.name b.decoder)
 
 
+{-| Map 3 fields.
+-}
 map3 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
@@ -171,6 +225,8 @@ map3 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) mapper =
             (Json.Decode.field c.name c.decoder)
 
 
+{-| Map 4 fields.
+-}
 map4 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
@@ -192,6 +248,8 @@ map4
                 (Json.Decode.field d.name d.decoder)
 
 
+{-| Map 5 fields.
+-}
 map5 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
@@ -216,6 +274,8 @@ map5
                 (Json.Decode.field e.name e.decoder)
 
 
+{-| Map 6 fields.
+-}
 map6 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
@@ -243,6 +303,8 @@ map6
                 (Json.Decode.field f.name f.decoder)
 
 
+{-| Map 7 fields.
+-}
 map7 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
@@ -273,6 +335,8 @@ map7
                 (Json.Decode.field g.name g.decoder)
 
 
+{-| Map 8 fields.
+-}
 map8 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
@@ -314,6 +378,8 @@ unwrap (Decoder inner) =
     inner
 
 
+{-| Get a json decoder for a raw ws4sql query response.
+-}
 ws4sqlQueryResponse : Decoder a -> Json.Decode.Decoder (Array a)
 ws4sqlQueryResponse decoder =
     -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
@@ -337,6 +403,8 @@ ws4sqlQueryResponse decoder =
                         (unwrap decoder)
 
 
+{-| Get a json decoder for a raw ws4sql statement response.
+-}
 ws4sqlStatementResponse : Json.Decode.Decoder (Array Int)
 ws4sqlStatementResponse =
     -- See https://germ.gitbook.io/ws4sqlite/documentation/responses
