@@ -1,6 +1,6 @@
 # SQLite for Gren
 
-Use sqlite entirely in Gren without ports via [ws4sql](https://github.com/proofrock/ws4sqlite).
+Use sqlite entirely in [Gren](https://gren-lang.org/) without ports via [ws4sql](https://github.com/proofrock/ws4sqlite).
 
 Note: this package expects the [ws4sql](https://github.com/proofrock/ws4sqlite/tree/fork/ws4sql) fork of ws4sqlite.
 If you're using the [npm package](https://github.com/blaix/ws4sql-npm/), you're all set.
