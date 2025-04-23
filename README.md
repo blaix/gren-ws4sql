@@ -11,7 +11,7 @@ Otherwise, check the [github releases](https://github.com/proofrock/ws4sqlite/re
 Start a ws4sql database server:
 
 ```bash
-npx ws4sql --db mydatabase.db
+npx ws4sql --quick-db mydatabase.db
 ```
 
 This will create `mydatabase.db` if it doesn't exist and start a server available at `http://localhost:12321/mydatabase`.

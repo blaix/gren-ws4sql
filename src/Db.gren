@@ -73,7 +73,7 @@ ws4sql uses HTTP as its protocol so you must grant permission with
 The String is the server url and by default is
 `http://localhost:12321/[dbname]` where `[dbname]` is the database name
 configured for your server, without the suffix. So for example, if you started
-a server with `ws4sql --db mydb.db`, the url will be
+a server with `ws4sql --quick-db mydb.db`, the url will be
 `http://localhost:12321/mydb`.
 -}
 init : HttpClient.Permission -> String -> Connection
