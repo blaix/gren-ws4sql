@@ -13,11 +13,31 @@ module Db.Encode exposing
     , toJson
     )
 
+{-| Encode SQL parameters.
+
+These are used for encoding values to be replaced in sql parameters.
+
+They will usually be passed in an array via the `parameters` field,
+where the string matches the colon-prefixed named of the parameter in the sql:
+
+    Db.execute connection
+        { statement = "insert into users (id, name) values (:id, :name)"
+        , parameters =
+            [ Db.Encode.int "id" 1
+            , Db.Encode.string "name" "Justin"
+            ]
+        }
+
+@docs Value, string, int, float, bool, null, posix, toJson
+
+-}
 
 import Json.Encode
 import Time
 
 
+{-| An encoded parameter value.
+-}
 type Value
     = Value
         { key : String
@@ -25,6 +45,10 @@ type Value
         }
 
 
+{-| Encode a boolean value.
+
+    Db.Encode.bool "myBoolField" True
+-}
 bool : String -> Bool -> Value
 bool field b =
     Value
@@ -37,6 +61,10 @@ bool field b =
         }
 
 
+{-| Encode a float.
+
+    Db.Encode.float "myFloatField" 1.2
+-}
 float : String -> Float -> Value
 float field f =
     Value
@@ -45,6 +73,10 @@ float field f =
         }
 
 
+{-| Encode an integer.
+
+    Db.Encode.int "myIntField" 1
+-}
 int : String -> Int -> Value
 int field i =
     Value
@@ -53,6 +85,10 @@ int field i =
         }
 
 
+{-| Encode null.
+
+    Db.Encode.null "myNullField"
+-}
 null : String -> Value
 null field =
     Value
@@ -61,6 +97,14 @@ null field =
         }
 
 
+{-| Encode a Time.Posix value.
+
+This is what you should use for date fields.
+The database field should be an INTEGER type.
+It will be stored as the number of milliseconds since 1970 January 1 at 00:00:00 UTC (it was a Thursday).
+
+    Db.Encode.posix "myDateField" (Time.millisToPosix 0)
+-}
 posix : String -> Time.Posix -> Value
 posix field t =
     Value
@@ -70,6 +114,10 @@ posix field t =
         }
 
 
+{-| Encode a String value.
+
+    Db.Encode.string "myStringField" "Hey there"
+-}
 string : String -> String -> Value
 string field s =
     Value
@@ -81,6 +129,15 @@ string field s =
 -- HELPERS
 
 
+{-| Convert an array of Db.Encode.Value fields to a Json object.
+
+This is useful if you want to bypass this package's API and interact with ws4sql directly.
+
+    [ Db.Encode.int "id" 123 ]
+        |> Db.Encode.toJson
+        |> Json.Encode.encode 0
+        -- results in: {"id": 123}
+-}
 toJson : Array Value -> Json.Encode.Value
 toJson values =
     values

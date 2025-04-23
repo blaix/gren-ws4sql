@@ -25,6 +25,22 @@ module Db.Decode exposing
     , ws4sqlStatementResponse
     )
 
+{-| Decode SQL results into Gren values.
+
+These are typically used in the `Db.get*` functions via the `decoder` field,
+where the string value matches the name of the field in the query.
+For example:
+
+    Db.getAll connection
+        { query = "select * from users"
+        , parameters = []
+        , decoder = 
+            Db.Decode.map2
+                (Db.Decode.int "id")
+                (Db.Decode.string "name")
+                (\id name -> { id = id, name = name })
+        }
+-}
 
 import Db.Encode
 import Json.Decode
