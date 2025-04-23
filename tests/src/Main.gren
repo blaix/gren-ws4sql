@@ -225,13 +225,13 @@ type alias AllTypes =
 allTypesDecoder : Decoder AllTypes
 allTypesDecoder =
     Db.Decode.map5
-        (Db.Decode.int "nullableInt" |> Db.Decode.nullable)
+        (Db.Decode.maybe Db.Decode.int "nullableInt")
         (Db.Decode.float "float")
         (Db.Decode.string "string")
         (Db.Decode.bool "bool")
         (Db.Decode.posix "posix")
-        (\nullableInt float string bool posix -> 
-            { nullableInt = nullableInt
+        (\maybeInt float string bool posix -> 
+            { nullableInt = maybeInt
             , float = float
             , string = string
             , bool = bool

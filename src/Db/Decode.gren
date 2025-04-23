@@ -6,9 +6,9 @@ module Db.Decode exposing
     , bool
     , float
     , int
-    , nullable
     , posix
     , string
+    , maybe
 
     -- Mapping
     , map
@@ -122,8 +122,12 @@ string name =
         }
 
 
-nullable : FieldDecoder a -> FieldDecoder (Maybe a)
-nullable (FieldDecoder { name, decoder }) =
+maybe : (String -> FieldDecoder a) -> String -> FieldDecoder (Maybe a)
+maybe toDecoder fieldName =
+    let
+        (FieldDecoder { name, decoder }) =
+            toDecoder fieldName
+    in
     FieldDecoder
         { name = name
         , decoder =
