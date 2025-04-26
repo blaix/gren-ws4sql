@@ -58,6 +58,7 @@ main =
                         , getAllTests connection
                         , encodeDecodeTests connection
                         , mapTests connection
+                        , errorTests connection
                         , authTests connectionWithAuth
                         , loggingTests fsPermission connection
                         ]
@@ -208,6 +209,39 @@ getAllTests connection =
               test "returns array with both users" <| \_ ->
                   Expect.equal [user1, user2] result
         ]
+
+
+-- ERROR TESTS
+
+
+errorTests : Db.Connection -> Test
+errorTests connection =
+    let
+        badSql =
+            { statement = "select blah, from ohno"
+            , parameters = []
+            }
+    in
+    await (initUsers connection [user1, user1]) "Insert duplicate users for error tests" <| \_ ->
+        describe "Db.errorToString"
+            [ awaitError (getOneUser connection 99) "with NoResultError" <| \error ->
+                test "returns no results error string" <| \_ ->
+                    error
+                        |> Db.errorToString
+                        |> Expect.equal "Expected one result, got none"
+
+            , awaitError (getOneUser connection 1) "with MultipleResultsError" <| \error ->
+                test "returns multiple result error string" <| \_ ->
+                    error
+                        |> Db.errorToString
+                        |> Expect.equal "Expected one result, got 2"
+
+            , awaitError (Db.execute connection badSql) "with Error" <| \error ->
+                test "returns error string from database" <| \_ ->
+                    error
+                        |> Db.errorToString
+                        |> (\s -> Expect.equal (String.contains "Internal Server Error" s) True)
+            ]
 
 
 -- ENCODE / DECODE TESTS

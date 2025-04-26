@@ -20,6 +20,7 @@ module Db exposing
 
     -- Errors
     , Error(..)
+    , errorToString
     )
 
 {-| Run db queries in Gren.
@@ -34,7 +35,7 @@ module Db exposing
 
 ## Errors
 
-@docs Error
+@docs Error, errorToString
 
 -}
 
@@ -464,3 +465,19 @@ mapHttpError =
     -- by matching on BadStatus to parse the "error" from the response body.
     -- See https://germ.gitbook.io/ws4sqlite/documentation/errors
     HttpClient.errorToString >> Error
+
+
+{-| Get an error message as a string.
+-}
+errorToString : Error -> String
+errorToString error =
+    when error is
+        Error s ->
+            s
+
+        NoResultError ->
+            "Expected one result, got none"
+
+        MultipleResultsError n ->
+            "Expected one result, got " ++ (String.fromInt n) 
+
