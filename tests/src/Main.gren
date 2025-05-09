@@ -57,7 +57,7 @@ main =
                         , getMaybeOneTests connection
                         , getAllTests connection
                         , encodeDecodeTests connection
-                        , mapTests connection
+                        , getNTests connection
                         , errorTests connection
                         , authTests connectionWithAuth
                         , loggingTests fsPermission connection
@@ -258,7 +258,7 @@ type alias AllTypes =
 
 allTypesDecoder : Decoder AllTypes
 allTypesDecoder =
-    Db.Decode.map5
+    Db.Decode.get5
         (Db.Decode.maybe Db.Decode.int "nullableInt")
         (Db.Decode.float "float")
         (Db.Decode.string "string")
@@ -380,18 +380,18 @@ encodeDecodeTests connection =
         ]
 
 
--- MAP TESTS
+-- GETN TESTS
 
 
-mapTests : Db.Connection -> Test
-mapTests connection =
+getNTests : Db.Connection -> Test
+getNTests connection =
     let
         get1 =
             Db.getOne connection
                 { query = "select 1 as one"
                 , parameters = []
                 , decoder =
-                    Db.Decode.map
+                    Db.Decode.get1
                         (Db.Decode.int "one")
                         (\one -> [ one ])
                 }
@@ -401,7 +401,7 @@ mapTests connection =
                 { query = "select 1 as one, 2 as two"
                 , parameters = []
                 , decoder =
-                    Db.Decode.map2
+                    Db.Decode.get2
                         (Db.Decode.int "one")
                         (Db.Decode.int "two")
                         (\one two -> [ one, two ])
@@ -412,7 +412,7 @@ mapTests connection =
                 { query = "select 1 as one, 2 as two, 3 as three"
                 , parameters = []
                 , decoder =
-                    Db.Decode.map3
+                    Db.Decode.get3
                         (Db.Decode.int "one")
                         (Db.Decode.int "two")
                         (Db.Decode.int "three")
@@ -431,7 +431,7 @@ mapTests connection =
                     """
                 , parameters = []
                 , decoder =
-                    Db.Decode.map4
+                    Db.Decode.get4
                         (Db.Decode.int "one")
                         (Db.Decode.int "two")
                         (Db.Decode.int "three")
@@ -458,7 +458,7 @@ mapTests connection =
                     """
                 , parameters = []
                 , decoder =
-                    Db.Decode.map5
+                    Db.Decode.get5
                         (Db.Decode.int "one")
                         (Db.Decode.int "two")
                         (Db.Decode.int "three")
@@ -488,7 +488,7 @@ mapTests connection =
                     """
                 , parameters = []
                 , decoder =
-                    Db.Decode.map6
+                    Db.Decode.get6
                         (Db.Decode.int "one")
                         (Db.Decode.int "two")
                         (Db.Decode.int "three")
@@ -521,7 +521,7 @@ mapTests connection =
                     """
                 , parameters = []
                 , decoder =
-                    Db.Decode.map7
+                    Db.Decode.get7
                         (Db.Decode.int "one")
                         (Db.Decode.int "two")
                         (Db.Decode.int "three")
@@ -557,7 +557,7 @@ mapTests connection =
                     """
                 , parameters = []
                 , decoder =
-                    Db.Decode.map8
+                    Db.Decode.get8
                         (Db.Decode.int "one")
                         (Db.Decode.int "two")
                         (Db.Decode.int "three")
@@ -579,37 +579,37 @@ mapTests connection =
                         )
                 }
     in
-    describe "map tests"
+    describe "getN tests"
         [ await get1 "get one field" <| \result ->
-            test "map" <| \_ ->
+            test "get1" <| \_ ->
                 Expect.equal [1] result
 
         , await get2 "get two fields" <| \result ->
-            test "map2" <| \_ ->
+            test "get2" <| \_ ->
                 Expect.equal [1, 2] result
 
         , await get3 "get three fields" <| \result ->
-            test "map3" <| \_ ->
+            test "get3" <| \_ ->
                 Expect.equal [1, 2, 3] result
 
         , await get4 "get four fields" <| \result ->
-            test "map4" <| \_ ->
+            test "get4" <| \_ ->
                 Expect.equal [1, 2, 3, 4] result
 
         , await get5 "get five fields" <| \result ->
-            test "map5" <| \_ ->
+            test "get5" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5] result
 
         , await get6 "get six fields" <| \result ->
-            test "map6" <| \_ ->
+            test "get6" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5, 6] result
 
         , await get7 "get seven fields" <| \result ->
-            test "map7" <| \_ ->
+            test "get7" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5, 6, 7] result
 
         , await get8 "get eight fields" <| \result ->
-            test "map8" <| \_ ->
+            test "get8" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5, 6, 7, 8] result
         ]
 
@@ -641,7 +641,7 @@ loggingTests fsPermission connection =
                 { query = "select 42 as everything"
                 , parameters = []
                 , decoder = 
-                    Db.Decode.map
+                    Db.Decode.get1
                         (Db.Decode.int "everything")
                         (\i -> i)
                 }
@@ -736,7 +736,7 @@ type alias User =
 
 userDecoder : Decoder User
 userDecoder =
-    Db.Decode.map2
+    Db.Decode.get2
         (Db.Decode.int "id")
         (Db.Decode.string "name")
         (\id name -> { id = id, name = name })

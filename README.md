@@ -33,7 +33,7 @@ getUser httpPerm userId =
         { query = "select * from users where id = :id"
         , parameters = [ Db.Encode.int "id" userId ]
         , decoder = 
-            Db.Decode.map2
+            Db.Decode.get2
                 (Db.Decode.int "id")
                 (Db.Decode.string "name")
                 (\id name -> { id = id, name = name })

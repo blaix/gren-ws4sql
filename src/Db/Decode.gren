@@ -10,15 +10,21 @@ module Db.Decode exposing
     , string
     , maybe
 
-    -- Mapping
-    , map
-    , map2
-    , map3
-    , map4
-    , map5
-    , map6
-    , map7
-    , map8
+    -- Decoding fields
+    , get1
+    , get2
+    , get3
+    , get4
+    , get5
+    , get6
+    , get7
+    , get8
+
+    -- Fancy Decoding
+    --, map
+    --, hardCode
+    --, fail
+    --, andThen
 
     -- ws4sql Helpers
     , ws4sqlQueryResponse
@@ -36,7 +42,7 @@ For example:
         { query = "select * from users where id = :id"
         , parameters = [ Db.Encode.int 1 ]
         , decoder = 
-            Db.Decode.map2
+            Db.Decode.get2
                 (Db.Decode.int "id")
                 (Db.Decode.string "name")
                 (\id name -> { id = id, name = name })
@@ -44,15 +50,18 @@ For example:
 
 @docs Decoder, FieldDecoder
 
+## Rows
+
+Use these get functions to turn one or more field decoders into a full row decoder.
+
+@docs get1, get2, get3, get4, get5, get6, get7, get8
+
 ## Fields
 
+Use these functions to decode an individual field in a row.
+You'll usually be using these to build up a full decoder via one of the `getN` functions.
+
 @docs string, int, float, bool, posix, maybe
-
-## Mapping
-
-Use these map functions to turn one or more field decoders into a full decoder.
-
-@docs map, map2, map3, map4, map5, map6, map7, map8
 
 ## Util
 
@@ -68,17 +77,13 @@ import Json.Encode
 import Time
 
 
-{-| A decoder for a full record.
-
-This is what's passed to the `decoder` field.
+{-| A decoder for a database row.
 -}
 type Decoder a
     = Decoder (Json.Decode.Decoder a)
 
 
-{-| A decoder for an individual field.
-
-This is what's passed to your [map](#mapping) functions.
+{-| A decoder for an individual field in a row.
 -}
 type FieldDecoder a
     = FieldDecoder
@@ -184,40 +189,40 @@ maybe toDecoder fieldName =
         }
 
 
--- MAPPING
+-- ROWS
 
 
-{-| Map a single field.
+{-| Create a decoder that gets a single field from a row.
 -}
-map : FieldDecoder a -> (a -> b) -> Decoder b
-map (FieldDecoder { name, decoder }) mapper =
+get1 : FieldDecoder a -> (a -> b) -> Decoder b
+get1 (FieldDecoder { name, decoder }) mapper =
     Decoder <|
         Json.Decode.map mapper
             (Json.Decode.field name decoder)
 
-{-| Map 2 fields.
+{-| Create a decoder that gets 2 fields.
 -}
-map2 : 
+get2 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
     (a -> b -> c) -> 
     Decoder c
-map2 (FieldDecoder a) (FieldDecoder b) mapper =
+get2 (FieldDecoder a) (FieldDecoder b) mapper =
     Decoder <|
         Json.Decode.map2 mapper
             (Json.Decode.field a.name a.decoder)
             (Json.Decode.field b.name b.decoder)
 
 
-{-| Map 3 fields.
+{-| Create a decoder that gets 3 fields from a row.
 -}
-map3 : 
+get3 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
     FieldDecoder c -> 
     (a -> b -> c -> d) -> 
     Decoder d
-map3 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) mapper =
+get3 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) mapper =
     Decoder <|
         Json.Decode.map3 mapper
             (Json.Decode.field a.name a.decoder)
@@ -225,16 +230,16 @@ map3 (FieldDecoder a) (FieldDecoder b) (FieldDecoder c) mapper =
             (Json.Decode.field c.name c.decoder)
 
 
-{-| Map 4 fields.
+{-| Create a decoder that gets 4 fields from a row.
 -}
-map4 : 
+get4 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
     FieldDecoder c -> 
     FieldDecoder d -> 
     (a -> b -> c -> d -> e) -> 
     Decoder e
-map4
+get4
     (FieldDecoder a)
     (FieldDecoder b)
     (FieldDecoder c)
@@ -248,9 +253,9 @@ map4
                 (Json.Decode.field d.name d.decoder)
 
 
-{-| Map 5 fields.
+{-| Create a decoder that gets 5 fields from a row.
 -}
-map5 : 
+get5 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
     FieldDecoder c -> 
@@ -258,7 +263,7 @@ map5 :
     FieldDecoder e -> 
     (a -> b -> c -> d -> e -> f) -> 
     Decoder f
-map5
+get5
     (FieldDecoder a)
     (FieldDecoder b)
     (FieldDecoder c)
@@ -274,9 +279,9 @@ map5
                 (Json.Decode.field e.name e.decoder)
 
 
-{-| Map 6 fields.
+{-| Create a decoder that gets 6 fields from a row.
 -}
-map6 : 
+get6 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
     FieldDecoder c -> 
@@ -285,7 +290,7 @@ map6 :
     FieldDecoder f -> 
     (a -> b -> c -> d -> e -> f -> g) -> 
     Decoder g
-map6
+get6
     (FieldDecoder a)
     (FieldDecoder b)
     (FieldDecoder c)
@@ -303,9 +308,9 @@ map6
                 (Json.Decode.field f.name f.decoder)
 
 
-{-| Map 7 fields.
+{-| Create a decoder that gets 7 fields from a row.
 -}
-map7 : 
+get7 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
     FieldDecoder c -> 
@@ -315,7 +320,7 @@ map7 :
     FieldDecoder g -> 
     (a -> b -> c -> d -> e -> f -> g -> h) -> 
     Decoder h
-map7
+get7
     (FieldDecoder a)
     (FieldDecoder b) 
     (FieldDecoder c)
@@ -335,9 +340,11 @@ map7
                 (Json.Decode.field g.name g.decoder)
 
 
-{-| Map 8 fields.
+{-| Create a decoder that gets 8 fields from a row.
+
+If you need more than 8 fields, you'll need to use [`andThen`](#andThen) to tack on another round of decoding.
 -}
-map8 : 
+get8 : 
     FieldDecoder a -> 
     FieldDecoder b -> 
     FieldDecoder c -> 
@@ -348,7 +355,7 @@ map8 :
     FieldDecoder h -> 
     (a -> b -> c -> d -> e -> f -> g -> h -> i) -> 
     Decoder i
-map8
+get8
     (FieldDecoder a)
     (FieldDecoder b)
     (FieldDecoder c)
