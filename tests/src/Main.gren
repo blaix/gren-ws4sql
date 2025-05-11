@@ -763,13 +763,36 @@ fancyQuery connection =
         }
 
 
+failDecoding : Db.Connection -> Task Db.Error Int
+failDecoding connection =
+    Db.getOne connection
+        { query = "select 1"
+        , parameters = []
+        , decoder = Db.Decode.fail "Oopsy!"
+        }
+
+
 fancyDecodingTests : Db.Connection -> Test
 fancyDecodingTests connection =
-    await (fancyQuery connection) "Run query with fancy decoder" <| \result ->
-        test "decodes fancy result" <| \_ ->
-            Expect.equal
-                { one = "one: 1", two = "two: 2" }
-                result
+    describe "Fancy decoder tests"
+        [ await (fancyQuery connection) "Run query with fancy decoder" <| \result ->
+            test "decodes fancy result" <| \_ ->
+                Expect.equal
+                    { one = "one: 1", two = "two: 2" }
+                    result
+        
+        , awaitError (failDecoding connection) "Forcing a decode failure" <| \result ->
+            test "results in decoding error" <| \_ ->
+                when result is
+                    Error s ->
+                        String.contains "Oopsy!" s
+                            |> Expect.equal True
+
+                    _ ->
+                        Expect.fail <|
+                            "Unexpected error in forced decoder failure test: " ++
+                            Debug.toString result
+        ]
 
 
 -- USERS

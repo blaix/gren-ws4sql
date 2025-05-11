@@ -21,7 +21,7 @@ module Db.Decode exposing
     -- Fancy Decoding
     , map
     , succeed
-    --, fail
+    , fail
     , andThen
 
     -- ws4sql Helpers
@@ -448,6 +448,12 @@ succeed : a -> Decoder a
 succeed a =
     Decoder <|
         Json.Decode.succeed a
+
+
+fail : String -> Decoder a
+fail reason =
+    Decoder <|
+        Json.Decode.fail reason
 
 
 map : (a -> b) -> Decoder a -> Decoder b
