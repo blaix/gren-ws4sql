@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 2.0.0 (pending)
+## 2.0.0 (2025-05-11)
 
 This release is an overhaul of the `Decode` module:
 
