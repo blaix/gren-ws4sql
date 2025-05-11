@@ -2,10 +2,12 @@
 
 ## 2.0.0 (pending)
 
-- Rename `mapN` functions to `getN`.
-  I think this reads better as "create a decoder that get's N fields from a row".
-  It also makes it less awkward that it's deviating from the typical map API by having the mapper function last instead of first.
-  It also gives me the name space to add a field-level `map` function.
+This release is an overhaul of the `Decode` module:
+
+- `Decoder` and `FieldDecoder` are merged into a single type.
+- `mapN` functions renamed to `getN` since they have a different API than what's typical for map functions.
+- `map` added and works like a normal map function.
+- added `succeed`, `fail`, and `andThen`
 
 ## 1.1.0 (2024-04-26)
 
