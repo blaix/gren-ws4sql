@@ -61,6 +61,12 @@ Use these get functions to build a decoder that gets multiple fields from a row.
 
 @docs get2, get3, get4, get5, get6, get7, get8
 
+## Fancy Decoding
+
+Build more complex decoders with these functions.
+
+@docs map, succeed, fail, andThen
+
 ## Util
 
 You shouldn't need these unless you are bypassing this package's API
@@ -94,8 +100,8 @@ type Error
 {-| Decode a boolean field.
 
 Booleans in sqlite can be stored as integers with 1 and 0 as True and False,
-or as a string of "TRUE" or "FALSE" (all other values will fail decoding).
-See https://www.sqlite.org/datatype3.html#boolean_datatype
+or as a string with value "TRUE" or "FALSE". All other values will fail decoding.
+See <https://www.sqlite.org/datatype3.html#boolean_datatype>
 -}
 bool : String -> Decoder Bool
 bool name =
@@ -145,8 +151,9 @@ float name =
 
 {-| Decode an integer field into a Time.Posix value.
 
-The integer in the database should represent the number of milliseconds since 1970 January 1 at 00:00:00 UTC.
-(See [Db.Encode.posix](Db.Encode#posix).
+The integer in the database should represent unix time in milliseconds
+(the number of milliseconds since 1970 January 1 at 00:00:00 UTC).
+This is how a `Time.Posix` value will be saved when using [Db.Encode.posix](Db.Encode#posix).
 -}
 posix : String -> Decoder Time.Posix
 posix name =
@@ -444,18 +451,39 @@ get8 decoderA decoderB decoderC decoderD decoderE decoderF decoderG decoderH map
 -- FANCY DECODING
 
 
+{-| Create a decoder that's hard-coded to a specific value.
+
+For example:
+
+    Decode.succeed "abc"
+
+will always decode to "abc" regardless of input.
+
+You will most likely use this in conjunction with [`andThen`](#andThen).
+-}
 succeed : a -> Decoder a
 succeed a =
     Decoder <|
         Json.Decode.succeed a
 
 
+{-| Force a decoder to fail.
+
+You will most likely use this in conjunction with [`andThen`](#andThen).
+-}
 fail : String -> Decoder a
 fail reason =
     Decoder <|
         Json.Decode.fail reason
 
 
+{-| Update a decoder with a function that will modify the decoded value.
+
+For example:
+
+    Decode.string "email"
+        |> Decode.map Email.fromString
+-}
 map : (a -> b) -> Decoder a -> Decoder b
 map mapper decoder_ =
     when decoder_ is
@@ -471,6 +499,20 @@ map mapper decoder_ =
                 }
 
 
+{-| Chain decoders together.
+
+You will most likely use this conjunction with [`succeed`](#succeed) and [`fail`](#fail).
+For example:
+
+    Decode.string "email"
+        |> Decode.andThen
+            (\email ->
+                when Email.fromString email is
+                    Just email -> Decode.succeed email
+                    Nothing -> Decode.fail "invalid email"
+            )
+
+-}
 andThen : (a -> Decoder b) -> Decoder a -> Decoder b
 andThen mapper decoder =
     unwrap decoder

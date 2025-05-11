@@ -163,7 +163,7 @@ Queries with zero or more than one result will result in an error.
         { query = "select * from users where id = :id"
         , parameters = [ Db.Encode.int "id" 1 ]
         , decoder = 
-            Db.Decode.map2
+            Db.Decode.get2
                 (Db.Decode.int "id")
                 (Db.Decode.string "name")
                 (\id name -> { id = id, name = name })
@@ -183,7 +183,7 @@ The resolved value will be a `Maybe` holding `Nothing` or the result of the `dec
         { query = "select * from users where id = :id"
         , parameters = [ Db.Encode.int "id" 1 ]
         , decoder = 
-            Db.Decode.map2
+            Db.Decode.get2
                 (Db.Decode.int "id")
                 (Db.Decode.string "name")
                 (\id name -> { id = id, name = name })
@@ -203,7 +203,7 @@ The resolved value will be an array of values, each derived from the `decoder`.
         { query = "select * from users"
         , parameters = []
         , decoder = 
-            Db.Decode.map2
+            Db.Decode.get2
                 (Db.Decode.int "id")
                 (Db.Decode.string "name")
                 (\id name -> { id = id, name = name })
