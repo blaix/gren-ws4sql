@@ -61,6 +61,7 @@ main =
                         , errorTests connection
                         , authTests connectionWithAuth
                         , loggingTests fsPermission connection
+                        , fancyDecodingTests connection
                         ]
 
 
@@ -391,9 +392,9 @@ getNTests connection =
                 { query = "select 1 as one"
                 , parameters = []
                 , decoder =
-                    Db.Decode.get1
-                        (Db.Decode.int "one")
-                        (\one -> [ one ])
+                    Db.Decode.int "one"
+                        |> Db.Decode.map
+                            (\one -> [ one ])
                 }
 
         get2 =
@@ -641,9 +642,7 @@ loggingTests fsPermission connection =
                 { query = "select 42 as everything"
                 , parameters = []
                 , decoder = 
-                    Db.Decode.get1
-                        (Db.Decode.int "everything")
-                        (\i -> i)
+                    Db.Decode.int "everything"
                 }
 
         readLogFile =
@@ -723,6 +722,54 @@ authTests connection =
             test "succeeds without authentication error" <| \_ ->
                 Expect.equal 0 result
         ]
+
+
+-- FANCY DECODING
+
+
+type alias OneTwo =
+    { one : String
+    , two : String
+    }
+
+
+fancyDecoder : Decoder OneTwo
+fancyDecoder =
+    Db.Decode.get2
+        (Db.Decode.int "one" |> Db.Decode.map String.fromInt |> Db.Decode.andThen (\i -> Db.Decode.succeed ("one: " ++ i)))
+        (Db.Decode.int "two")
+        (\one two -> { one = one, two = two })
+            |> Db.Decode.map
+                (\{ one, two } ->
+                    { one = one
+                    , two = String.fromInt two
+                    }
+                )
+            |> Db.Decode.andThen
+                (\{ one, two } ->
+                    Db.Decode.succeed
+                        { one = one
+                        , two = "two: " ++ two
+                        }
+                )
+
+
+fancyQuery : Db.Connection -> Task Db.Error OneTwo
+fancyQuery connection =
+    Db.getOne connection
+        { query = "select 1 as one, 2 as two"
+        , parameters = []
+        , decoder = fancyDecoder
+        }
+
+
+fancyDecodingTests : Db.Connection -> Test
+fancyDecodingTests connection =
+    await (fancyQuery connection) "Run query with fancy decoder" <| \result ->
+        test "decodes fancy result" <| \_ ->
+            Expect.equal
+                { one = "one: 1", two = "two: 2" }
+                result
 
 
 -- USERS
