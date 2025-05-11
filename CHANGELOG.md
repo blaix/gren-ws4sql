@@ -9,14 +9,14 @@ This release is an overhaul of the `Decode` module:
 - `map` added and works like a normal map function.
 - added `succeed`, `fail`, and `andThen`
 
-## 1.1.0 (2024-04-26)
+## 1.1.0 (2025-04-26)
 
 - Add `Db.errorToString`
 
-## 1.0.1 (2024-04-22)
+## 1.0.1 (2025-04-22)
 
 - Documentation fixes
 
-## 1.0.0 (2024-04-22)
+## 1.0.0 (2025-04-22)
 
 - Initial release
