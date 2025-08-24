@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Tests exposing (main)
 
 import Bytes
 import Db exposing (Error(..))
@@ -25,7 +25,7 @@ import Time
 
 logPath : Path
 logPath =
-    Path.fromPosixString "db/test.log"
+    Path.fromPosixString "test-dbs/test.log"
 
 
 -- RUNNER

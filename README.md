@@ -47,3 +47,11 @@ See the [package docs](https://packages.gren-lang.org/package/blaix/gren-ws4sql)
 Running `npx ws4sql --quick-db` as in the example above lets you try out ws4sql without installing or configuring anything.
 For full details on installing, configuring, and running ws4sql, see [the ws4sql-npm package](https://github.com/blaix/ws4sql-npm/) and [the ws4sqlite repo](https://github.com/proofrock/ws4sqlite).
 Note: this package expects the [ws4sql fork of ws4sqlite](https://github.com/proofrock/ws4sqlite/tree/fork/ws4sql) (this is what is installed by the npm package).
+
+## Local Development
+
+This project uses [devbox](https://www.jetify.com/devbox).
+If you don't want to use devbox, see [`devbox.json`](devbox.json) for dependencies and commands you will need instead.
+
+Run tests with `devbox run test`
+

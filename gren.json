@@ -10,9 +10,12 @@
         "Db.Encode",
         "Db.Decode"
     ],
-    "gren-version": "0.5.0 <= v < 0.6.0",
+    "gren-version": "0.6.0 <= v < 0.7.0",
     "dependencies": {
-        "gren-lang/core": "6.0.0 <= v < 7.0.0",
-        "gren-lang/node": "5.0.0 <= v < 6.0.0"
+        "blaix/gren-effectful-tests": "5.0.0 <= v < 6.0.0",
+        "gren-lang/core": "7.0.0 <= v < 8.0.0",
+        "gren-lang/node": "6.0.0 <= v < 7.0.0",
+        "gren-lang/test": "5.0.0 <= v < 6.0.0",
+        "gren-lang/test-runner-node": "7.0.0 <= v < 8.0.0"
     }
 }

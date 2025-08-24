@@ -459,7 +459,7 @@ type Error
     | MultipleResultsError Int
 
 
-mapHttpError : HttpClient.Error a -> Error
+mapHttpError : HttpClient.Error -> Error
 mapHttpError =
     -- When https://github.com/gren-lang/node/issues/28 is fixed, improve this
     -- by matching on BadStatus to parse the "error" from the response body.

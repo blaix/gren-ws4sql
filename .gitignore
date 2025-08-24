@@ -1,5 +1,4 @@
 .gren
 docs.json
-tests/app
-tests/db/*.db*
-tests/db/*.log
+test-dbs/*.db*
+test-dbs/*.log
