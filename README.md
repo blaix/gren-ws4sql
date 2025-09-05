@@ -50,8 +50,10 @@ Note: this package expects the [ws4sql fork of ws4sqlite](https://github.com/pro
 
 ## Local Development
 
-This project uses [devbox](https://www.jetify.com/devbox).
-If you don't want to use devbox, see [`devbox.json`](devbox.json) for dependencies and commands you will need instead.
+This project uses [devenv](https://devenv.sh/).
+If you don't want to use devenv, see [`devenv.nix`](devenv.nix) for dependencies and commands you will need instead.
 
-Run tests with `devbox run test`
+Run tests with `devenv test`
+
+This will run persistently, keeping the test db servers up and re-running the [tests](src/Tests.gren) when gren source code changes.
 

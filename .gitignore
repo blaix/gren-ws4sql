@@ -1,4 +1,7 @@
+.devenv*
+.direnv
 .gren
+devenv.local.nix
 docs.json
 test-dbs/*.db*
 test-dbs/*.log
