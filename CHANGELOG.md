@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 3.0.0 (2025-09-10)
+
+- Upgrade to Gren 0.6
+
 ## 2.0.0 (2025-05-11)
 
 This release is an overhaul of the `Decode` module:
