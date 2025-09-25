@@ -1,4 +1,4 @@
-module Tests exposing (main)
+module Main exposing (main)
 
 import Bytes
 import Db exposing (Error(..))
@@ -25,7 +25,7 @@ import Time
 
 logPath : Path
 logPath =
-    Path.fromPosixString "test-dbs/test.log"
+    Path.fromPosixString "db/test.log"
 
 
 -- RUNNER
@@ -49,7 +49,7 @@ main =
                         logPath
             in
             run env <|
-                await seedLog "Seed log lines" <| \_ ->
+                await "Seed log lines" seedLog <| \_ ->
                     concat
                         [ executeTests connection
                         , transactionTests connection
@@ -77,8 +77,8 @@ executeTests connection =
                 , parameters = []
                 }
     in
-    await (reset connection) "Reset DB for execute tests" <| \_ ->
-    await execute "Execute statement" <| \executeResult ->
+    await "Reset DB for execute tests" (reset connection) <| \_ ->
+    await "Execute statement" execute <| \executeResult ->
         test "returns number of affected rows" <| \_ ->
             Expect.equal 1 executeResult
 
@@ -128,12 +128,12 @@ transactionTests connection =
                 |> Task.onError (\_ -> get)
     in
     describe "Transactions"
-        [ await transactionSuccess "successful transaction" <| \result ->
+        [ await "successful transaction" transactionSuccess <| \result ->
             test "commits all statements in the transaction" <| \_ ->
                 [ { id = 1, name = "one" }, { id = 2, name = "two" } ]
                     |> Expect.equal result
 
-        , await transactionFailure "failed transaction" <| \result ->
+        , await "failed transaction" transactionFailure <| \result ->
             test "does not commit any statements in the transaction" <| \_ ->
                 Expect.equal [] result
         ]
@@ -144,50 +144,56 @@ transactionTests connection =
 
 getOneTests : Db.Connection -> Test
 getOneTests connection =
-    await (initUsers connection [user1]) "Insert test user for getOne tests" <| \_ ->
+    await "Insert test user for getOne tests" (initUsers connection [user1]) <| \_ ->
         describe "Db.getOne"
-            [ await (getOneUser connection user1.id) "Get test user" <| \result ->
+            [ await "Get test user" (getOneUser connection user1.id) <| \result ->
                 test "returns 1 user" <| \_ ->
                     Expect.equal user1 result
 
-            , awaitError (getOneUser connection 99) "Get non-existant user" <| \error ->
+            , awaitError "Get non-existant user" (getOneUser connection 99) <| \error ->
                 test "returns NoResultError" <| \_ ->
                     Expect.equal NoResultError error
 
-            , await (initUsers connection [user1, user1]) "Insert duplicate users" <| \_ ->
+            , await "Insert duplicate users" (initUsers connection [user1, user1]) <| \_ ->
                 concat
-                    [ awaitError (getOneUser connection 1) "Get one duplicated user" <| \error ->
+                    [ awaitError "Get one duplicated user" (getOneUser connection 1) <| \error ->
                         test "returns MultipleResultsError" <| \_ ->
                             Expect.equal (MultipleResultsError 2) error
 
-                    , await (getOneUserCustom connection 1 "select * from users limit 1") "Get one with limit" <| \result ->
-                        test "returns one instance of user" <| \_ ->
-                            Expect.equal user1 result
+                    , await "Get one with limit" 
+                        (getOneUserCustom connection 1 "select * from users limit 1")
+                        (\result ->
+                            test "returns one instance of user" <| \_ ->
+                                Expect.equal user1 result
+                        )
                     ]
             ]
 
 
 getMaybeOneTests : Db.Connection -> Test
 getMaybeOneTests connection =
-    await (initUsers connection [user1]) "Insert test user for getMaybeOne tests" <| \_ ->
+    await "Insert test user for getMaybeOne tests" (initUsers connection [user1]) <| \_ ->
         describe "Db.getOne"
-            [ await (getMaybeOneUser connection user1.id) "Maybe get test user" <| \result ->
+            [ await "Maybe get test user" (getMaybeOneUser connection user1.id) <| \result ->
                 test "returns Just user" <| \_ ->
                     Expect.equal (Just user1) result
 
-            , await (getMaybeOneUser connection 99) "Maybe get non-existant user" <| \result ->
+            , await "Maybe get non-existant user" (getMaybeOneUser connection 99) <| \result ->
                 test "returns Nothing" <| \_ ->
                     Expect.equal Nothing result
 
-            , await (initUsers connection [user1, user1]) "Insert duplicate users" <| \_ ->
+            , await "Insert duplicate users" (initUsers connection [user1, user1]) <| \_ ->
                 concat
-                    [ await (getMaybeOneUser connection 1) "Maybe get one duplicated user" <| \result ->
+                    [ await "Maybe get one duplicated user" (getMaybeOneUser connection 1) <| \result ->
                         test "returns Nothing" <| \_ ->
                             Expect.equal Nothing result
 
-                    , await (getMaybeOneUserCustom connection 1 "select * from users limit 1") "Maybe get one with limit" <| \result ->
-                        test "returns one instance of user" <| \_ ->
-                            Expect.equal (Just user1) result
+                    , await "Maybe get one with limit" 
+                        (getMaybeOneUserCustom connection 1 "select * from users limit 1")
+                        (\result ->
+                            test "returns one instance of user" <| \_ ->
+                                Expect.equal (Just user1) result
+                        )
                     ]
             ]
 
@@ -195,18 +201,18 @@ getMaybeOneTests connection =
 getAllTests : Db.Connection -> Test
 getAllTests connection =
     describe "Db.getAll tests"
-        [ await (reset connection) "with no users" <| \_ ->
-          await (getAllUsers connection) "getAll" <| \result ->
+        [ await "with no users" (reset connection) <| \_ ->
+          await "getAll" (getAllUsers connection) <| \result ->
               test "returns empty array" <| \_ ->
                   Expect.equal [] result
 
-        , await (initUsers connection [user1]) "with one user" <| \_ ->
-          await (getAllUsers connection) "getAll" <| \result ->
+        , await "with one user" (initUsers connection [user1]) <| \_ ->
+          await "getAll" (getAllUsers connection) <| \result ->
               test "returns array with just the user" <| \_ ->
                   Expect.equal [user1] result
 
-        , await (initUsers connection [user1, user2]) "with two users" <| \_ ->
-          await (getAllUsers connection) "getAll" <| \result ->
+        , await "with two users" (initUsers connection [user1, user2]) <| \_ ->
+          await "getAll" (getAllUsers connection) <| \result ->
               test "returns array with both users" <| \_ ->
                   Expect.equal [user1, user2] result
         ]
@@ -223,25 +229,29 @@ errorTests connection =
             , parameters = []
             }
     in
-    await (initUsers connection [user1, user1]) "Insert duplicate users for error tests" <| \_ ->
+    await "Insert duplicate users for error tests" (initUsers connection [user1, user1]) <| \_ ->
         describe "Db.errorToString"
-            [ awaitError (getOneUser connection 99) "with NoResultError" <| \error ->
+            [ awaitError "with NoResultError" (getOneUser connection 99) <| \error ->
                 test "returns no results error string" <| \_ ->
                     error
                         |> Db.errorToString
                         |> Expect.equal "Expected one result, got none"
 
-            , awaitError (getOneUser connection 1) "with MultipleResultsError" <| \error ->
+            , awaitError "with MultipleResultsError" (getOneUser connection 1) <| \error ->
                 test "returns multiple result error string" <| \_ ->
                     error
                         |> Db.errorToString
                         |> Expect.equal "Expected one result, got 2"
 
-            , awaitError (Db.execute connection badSql) "with Error" <| \error ->
+            , awaitError "with Error" (Db.execute connection badSql) <| \error ->
                 test "returns error string from database" <| \_ ->
                     error
                         |> Db.errorToString
-                        |> (\s -> Expect.equal (String.contains "Internal Server Error" s) True)
+                        --|> Debug.log "error"
+                        |> (\s -> 
+                                String.contains "Internal Server Error" s
+                                    |> Expect.equal True
+                           )
             ]
 
 
@@ -352,17 +362,17 @@ encodeDecodeTests connection =
             }
     in
     concat
-        [ await (task allTypes) "insert and get" <| \result ->
+        [ await "insert and get" (task allTypes) <| \result ->
             test "encodes and decodes" <| \_ ->
                 Expect.equal allTypes result
 
-        , await (task allTypesWithNegatives) "insert and get with falsey values" <| \result ->
+        , await "insert and get with falsey values" (task allTypesWithNegatives) <| \result ->
             test "encodes and decodes with falsey values" <| \_ ->
                 Expect.equal allTypesWithNegatives result
         
-        , await (reset connection) "Reset allTypes table" <| \_ ->
-          await insertWithStringBools "Insert TRUE/FALSE rows" <| \_ ->
-          await getAll_ "Get TRUE/FALSE rows" <| \result ->
+        , await "Reset allTypes table" (reset connection) <| \_ ->
+          await "Insert TRUE/FALSE rows" insertWithStringBools <| \_ ->
+          await "Get TRUE/FALSE rows" getAll_ <| \result ->
             test "successfully decodes TRUE/FALSE as bools" <| \_ ->
                 Expect.equal result
                     [ { nullableInt = Just 1
@@ -581,35 +591,35 @@ getNTests connection =
                 }
     in
     describe "getN tests"
-        [ await get1 "get one field" <| \result ->
+        [ await "get one field" get1 <| \result ->
             test "get1" <| \_ ->
                 Expect.equal [1] result
 
-        , await get2 "get two fields" <| \result ->
+        , await "get two fields" get2 <| \result ->
             test "get2" <| \_ ->
                 Expect.equal [1, 2] result
 
-        , await get3 "get three fields" <| \result ->
+        , await "get three fields" get3 <| \result ->
             test "get3" <| \_ ->
                 Expect.equal [1, 2, 3] result
 
-        , await get4 "get four fields" <| \result ->
+        , await "get four fields" get4 <| \result ->
             test "get4" <| \_ ->
                 Expect.equal [1, 2, 3, 4] result
 
-        , await get5 "get five fields" <| \result ->
+        , await "get five fields" get5 <| \result ->
             test "get5" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5] result
 
-        , await get6 "get six fields" <| \result ->
+        , await "get six fields" get6 <| \result ->
             test "get6" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5, 6] result
 
-        , await get7 "get seven fields" <| \result ->
+        , await "get seven fields" get7 <| \result ->
             test "get7" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5, 6, 7] result
 
-        , await get8 "get eight fields" <| \result ->
+        , await "get eight fields" get8 <| \result ->
             test "get8" <| \_ ->
                 Expect.equal [1, 2, 3, 4, 5, 6, 7, 8] result
         ]
@@ -650,9 +660,9 @@ loggingTests fsPermission connection =
                 |> Task.map Bytes.toString
                 |> Task.map (Maybe.withDefault "BYTES DECODING FAILED")
     in
-    await execute "Execute with logging" <| \executeResult ->
-    await query "Query with logging" <| \queryResult ->
-    await readLogFile "Read log file" <| \logContents ->
+    await "Execute with logging" execute <| \executeResult ->
+    await "Query with logging" query <| \queryResult ->
+    await "Read log file" readLogFile <| \logContents ->
         -- let
         --     _ =
         --         Debug.log "log" logContents
@@ -707,7 +717,7 @@ authTests connection =
                 }
     in
     describe "Auth tests"
-        [ awaitError execute "Execute statement when auth is required" <| \result ->
+        [ awaitError "Execute statement when auth is required" execute <| \result ->
             test "results in authentication error" <| \_ ->
                 when result is
                     Error _ ->
@@ -718,7 +728,7 @@ authTests connection =
                             "Did not fail with expected error variant: " ++
                             Debug.toString result
         
-        , await executeWithAuth "Execute statement with auth" <| \result ->
+        , await "Execute statement with auth" executeWithAuth <| \result ->
             test "succeeds without authentication error" <| \_ ->
                 Expect.equal 0 result
         ]
@@ -775,13 +785,13 @@ failDecoding connection =
 fancyDecodingTests : Db.Connection -> Test
 fancyDecodingTests connection =
     describe "Fancy decoder tests"
-        [ await (fancyQuery connection) "Run query with fancy decoder" <| \result ->
+        [ await "Run query with fancy decoder" (fancyQuery connection) <| \result ->
             test "decodes fancy result" <| \_ ->
                 Expect.equal
                     { one = "one: 1", two = "two: 2" }
                     result
         
-        , awaitError (failDecoding connection) "Forcing a decode failure" <| \result ->
+        , awaitError "Forcing a decode failure" (failDecoding connection) <| \result ->
             test "results in decoding error" <| \_ ->
                 when result is
                     Error s ->

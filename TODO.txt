@@ -1,6 +1,7 @@
 Test setup needs work.
 
-Change it back to a separate app so the package doesn't have test dependencies.
+- [x] Change it back to a separate app so the package doesn't have test dependencies.
 
 Devenv is a little too awkward and the output when running tests is noisy and awkward.
-Switch back to devbox and set up tests like the new gren package registry.
+
+- [ ] Switch back to devbox and set up tests like the new gren package registry.
