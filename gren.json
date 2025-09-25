@@ -4,7 +4,7 @@
     "name": "blaix/gren-ws4sql",
     "summary": "Use sqlite entirely in Gren via ws4sql",
     "license": "BSD-3-Clause",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "exposed-modules": [
         "Db",
         "Db.Encode",

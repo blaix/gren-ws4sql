@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 3.0.1 (2025-09-24)
+
+- Remove test dependencies from main package dependencies
+
 ## 3.0.0 (2025-09-10)
 
 - Upgrade to Gren 0.6
