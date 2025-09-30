@@ -460,11 +460,25 @@ type Error
 
 
 mapHttpError : HttpClient.Error -> Error
-mapHttpError =
-    -- When https://github.com/gren-lang/node/issues/28 is fixed, improve this
-    -- by matching on BadStatus to parse the "error" from the response body.
-    -- See https://germ.gitbook.io/ws4sqlite/documentation/errors
-    HttpClient.errorToString >> Error
+mapHttpError error =
+    -- TODO: handle all types of errors
+    -- https://germ.gitbook.io/ws4sqlite/documentation/errors
+    when error is
+        BadStatus response ->
+            when response.statusCode is
+                500 ->
+                    response.data
+                        |> Bytes.toString
+                        |> Maybe.withDefault "Failed to decode server error message."
+                        |> Json.Decode.decodeString (Json.Decode.field "error" Json.Decode.string)
+                        |> Result.toMaybe
+                        |> Maybe.withDefault "Failed to parse server error json."
+                        |> Error
+
+                _ ->
+                    Error (HttpClient.errorToString error)
+        _ ->
+            Error (HttpClient.errorToString error)
 
 
 {-| Get an error message as a string.

@@ -225,7 +225,7 @@ errorTests : Db.Connection -> Test
 errorTests connection =
     let
         badSql =
-            { statement = "select blah, from ohno"
+            { statement = "select blah from ohno"
             , parameters = []
             }
     in
@@ -247,11 +247,7 @@ errorTests connection =
                 test "returns error string from database" <| \_ ->
                     error
                         |> Db.errorToString
-                        --|> Debug.log "error"
-                        |> (\s -> 
-                                String.contains "Internal Server Error" s
-                                    |> Expect.equal True
-                           )
+                        |> Expect.equal "no such table: ohno"
             ]
 
 
