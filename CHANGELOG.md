@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 3.0.2 (2025-10-01)
+
+- Include error message from server in Error values
+
 ## 3.0.1 (2025-09-24)
 
 - Remove test dependencies from main package dependencies
