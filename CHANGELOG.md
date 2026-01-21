@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 4.0.0 (2026-01-01)
+
+- New decoding API. See the `Db.Decode` module.
+
 ## 3.0.2 (2025-10-01)
 
 - Include error message from server in Error values

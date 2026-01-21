@@ -14,8 +14,8 @@ Then you can write code like:
 
 ```elm
 import Db
-import Db.Encode
-import Db.Decode
+import Db.Encode as Encode
+import Db.Decode as Decode
 import HttpClient
 
 type alias User =
@@ -31,12 +31,14 @@ getUser httpPerm userId =
     in
     Db.getOne connection
         { query = "select * from users where id = :id"
-        , parameters = [ Db.Encode.int "id" userId ]
+        , parameters = [ Encode.int "id" userId ]
         , decoder = 
-            Db.Decode.get2
-                (Db.Decode.int "id")
-                (Db.Decode.string "name")
-                (\id name -> { id = id, name = name })
+            Decode.field Decode.int "id" <| \id ->
+            Decode.field Decode.string "name" <| \name ->
+            Decode.succeed
+                { id = id
+                , name = name
+                }
         }
 ```
 

@@ -57,7 +57,7 @@ main =
                         , getMaybeOneTests connection
                         , getAllTests connection
                         , encodeDecodeTests connection
-                        , getNTests connection
+                        , getNFieldTests connection
                         , errorTests connection
                         , authTests connectionWithAuth
                         , loggingTests fsPermission connection
@@ -265,20 +265,18 @@ type alias AllTypes =
 
 allTypesDecoder : Decoder AllTypes
 allTypesDecoder =
-    Db.Decode.get5
-        (Db.Decode.maybe Db.Decode.int "nullableInt")
-        (Db.Decode.float "float")
-        (Db.Decode.string "string")
-        (Db.Decode.bool "bool")
-        (Db.Decode.posix "posix")
-        (\maybeInt float string bool posix -> 
-            { nullableInt = maybeInt
-            , float = float
-            , string = string
-            , bool = bool
-            , posix = posix
-            }
-        )
+    Db.Decode.field (Db.Decode.maybe Db.Decode.int) "nullableInt" <| \maybeInt ->
+    Db.Decode.field Db.Decode.float "float" <| \float ->
+    Db.Decode.field Db.Decode.string "string" <| \string ->
+    Db.Decode.field Db.Decode.bool "bool" <| \bool ->
+    Db.Decode.field Db.Decode.posix "posix" <| \posix ->
+    Db.Decode.succeed
+        { nullableInt = maybeInt
+        , float = float
+        , string = string
+        , bool = bool
+        , posix = posix
+        }
 
 
 encodeDecodeTests : Db.Connection -> Test
@@ -390,8 +388,8 @@ encodeDecodeTests connection =
 -- GETN TESTS
 
 
-getNTests : Db.Connection -> Test
-getNTests connection =
+getNFieldTests : Db.Connection -> Test
+getNFieldTests connection =
     let
         get1 =
             Db.getOne connection
@@ -408,10 +406,10 @@ getNTests connection =
                 { query = "select 1 as one, 2 as two"
                 , parameters = []
                 , decoder =
-                    Db.Decode.get2
-                        (Db.Decode.int "one")
-                        (Db.Decode.int "two")
-                        (\one two -> [ one, two ])
+                    Db.Decode.field Db.Decode.int "one" <| \one ->
+                    Db.Decode.field Db.Decode.int "two" <| \two ->
+                    Db.Decode.succeed
+                        [ one, two ]
                 }
 
         get3 =
@@ -419,174 +417,14 @@ getNTests connection =
                 { query = "select 1 as one, 2 as two, 3 as three"
                 , parameters = []
                 , decoder =
-                    Db.Decode.get3
-                        (Db.Decode.int "one")
-                        (Db.Decode.int "two")
-                        (Db.Decode.int "three")
-                        (\one two three -> [ one, two, three ])
-                }
-
-        get4 =
-            Db.getOne connection
-                { query = 
-                    """
-                    select
-                        1 as one,
-                        2 as two,
-                        3 as three,
-                        4 as four
-                    """
-                , parameters = []
-                , decoder =
-                    Db.Decode.get4
-                        (Db.Decode.int "one")
-                        (Db.Decode.int "two")
-                        (Db.Decode.int "three")
-                        (Db.Decode.int "four")
-                        (\one two three four -> 
-                            [ one
-                            , two
-                            , three
-                            , four
-                            ]
-                        )
-                }
-
-        get5 =
-            Db.getOne connection
-                { query = 
-                    """
-                    select
-                        1 as one,
-                        2 as two,
-                        3 as three,
-                        4 as four,
-                        5 as five
-                    """
-                , parameters = []
-                , decoder =
-                    Db.Decode.get5
-                        (Db.Decode.int "one")
-                        (Db.Decode.int "two")
-                        (Db.Decode.int "three")
-                        (Db.Decode.int "four")
-                        (Db.Decode.int "five")
-                        (\one two three four five -> 
-                            [ one
-                            , two
-                            , three
-                            , four
-                            , five
-                            ]
-                        )
-                }
-
-        get6 =
-            Db.getOne connection
-                { query = 
-                    """
-                    select
-                        1 as one,
-                        2 as two,
-                        3 as three,
-                        4 as four,
-                        5 as five,
-                        6 as six
-                    """
-                , parameters = []
-                , decoder =
-                    Db.Decode.get6
-                        (Db.Decode.int "one")
-                        (Db.Decode.int "two")
-                        (Db.Decode.int "three")
-                        (Db.Decode.int "four")
-                        (Db.Decode.int "five")
-                        (Db.Decode.int "six")
-                        (\one two three four five six -> 
-                            [ one
-                            , two
-                            , three
-                            , four
-                            , five
-                            , six
-                            ]
-                        )
-                }
-
-        get7 =
-            Db.getOne connection
-                { query = 
-                    """
-                    select
-                        1 as one,
-                        2 as two,
-                        3 as three,
-                        4 as four,
-                        5 as five,
-                        6 as six,
-                        7 as seven
-                    """
-                , parameters = []
-                , decoder =
-                    Db.Decode.get7
-                        (Db.Decode.int "one")
-                        (Db.Decode.int "two")
-                        (Db.Decode.int "three")
-                        (Db.Decode.int "four")
-                        (Db.Decode.int "five")
-                        (Db.Decode.int "six")
-                        (Db.Decode.int "seven")
-                        (\one two three four five six seven -> 
-                            [ one
-                            , two
-                            , three
-                            , four
-                            , five
-                            , six
-                            , seven
-                            ]
-                        )
-                }
-
-        get8 =
-            Db.getOne connection
-                { query = 
-                    """
-                    select
-                        1 as one,
-                        2 as two,
-                        3 as three,
-                        4 as four,
-                        5 as five,
-                        6 as six,
-                        7 as seven,
-                        8 as eight
-                    """
-                , parameters = []
-                , decoder =
-                    Db.Decode.get8
-                        (Db.Decode.int "one")
-                        (Db.Decode.int "two")
-                        (Db.Decode.int "three")
-                        (Db.Decode.int "four")
-                        (Db.Decode.int "five")
-                        (Db.Decode.int "six")
-                        (Db.Decode.int "seven")
-                        (Db.Decode.int "eight")
-                        (\one two three four five six seven eight -> 
-                            [ one
-                            , two
-                            , three
-                            , four
-                            , five
-                            , six
-                            , seven
-                            , eight
-                            ]
-                        )
+                    Db.Decode.field Db.Decode.int "one" <| \one ->
+                    Db.Decode.field Db.Decode.int "two" <| \two ->
+                    Db.Decode.field Db.Decode.int "three" <| \three ->
+                    Db.Decode.succeed
+                        [ one, two, three ]
                 }
     in
-    describe "getN tests"
+    describe "getN field tests"
         [ await "get one field" get1 <| \result ->
             test "get1" <| \_ ->
                 Expect.equal [1] result
@@ -598,26 +436,6 @@ getNTests connection =
         , await "get three fields" get3 <| \result ->
             test "get3" <| \_ ->
                 Expect.equal [1, 2, 3] result
-
-        , await "get four fields" get4 <| \result ->
-            test "get4" <| \_ ->
-                Expect.equal [1, 2, 3, 4] result
-
-        , await "get five fields" get5 <| \result ->
-            test "get5" <| \_ ->
-                Expect.equal [1, 2, 3, 4, 5] result
-
-        , await "get six fields" get6 <| \result ->
-            test "get6" <| \_ ->
-                Expect.equal [1, 2, 3, 4, 5, 6] result
-
-        , await "get seven fields" get7 <| \result ->
-            test "get7" <| \_ ->
-                Expect.equal [1, 2, 3, 4, 5, 6, 7] result
-
-        , await "get eight fields" get8 <| \result ->
-            test "get8" <| \_ ->
-                Expect.equal [1, 2, 3, 4, 5, 6, 7, 8] result
         ]
 
 
@@ -741,23 +559,12 @@ type alias OneTwo =
 
 fancyDecoder : Decoder OneTwo
 fancyDecoder =
-    Db.Decode.get2
-        (Db.Decode.int "one" |> Db.Decode.map String.fromInt |> Db.Decode.andThen (\i -> Db.Decode.succeed ("one: " ++ i)))
-        (Db.Decode.int "two")
-        (\one two -> { one = one, two = two })
-            |> Db.Decode.map
-                (\{ one, two } ->
-                    { one = one
-                    , two = String.fromInt two
-                    }
-                )
-            |> Db.Decode.andThen
-                (\{ one, two } ->
-                    Db.Decode.succeed
-                        { one = one
-                        , two = "two: " ++ two
-                        }
-                )
+    Db.Decode.field Db.Decode.int "one" <| \one ->
+    Db.Decode.field Db.Decode.int "two" <| \two ->
+    Db.Decode.succeed
+        { one = "one: " ++ String.fromInt one
+        , two = "two: " ++ String.fromInt two
+        }
 
 
 fancyQuery : Db.Connection -> Task Db.Error OneTwo
@@ -812,10 +619,12 @@ type alias User =
 
 userDecoder : Decoder User
 userDecoder =
-    Db.Decode.get2
-        (Db.Decode.int "id")
-        (Db.Decode.string "name")
-        (\id name -> { id = id, name = name })
+    Db.Decode.field Db.Decode.int "id" <| \id ->
+    Db.Decode.field Db.Decode.string "name" <| \name ->
+    Db.Decode.succeed 
+        { id = id
+        , name = name
+        }
 
 
 user1 : User
