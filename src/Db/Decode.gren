@@ -234,13 +234,13 @@ fail reason =
 
     decodeEmail : String -> Decoder Email
     decodeEmail emailField =
-    Db.Decode.string emailField
-        |> Db.Decode.andThen
-            (\email ->
-                when Email.fromString is
-                    Just e -> Decode.succeed e
-                    Nothing -> Decode.fail "Invalid email"
-            )
+        Db.Decode.string emailField
+            |> Db.Decode.andThen
+                (\email ->
+                    when Email.fromString is
+                        Just e -> Decode.succeed e
+                        Nothing -> Decode.fail "Invalid email"
+                )
 -}
 andThen : (a -> Decoder b) -> Decoder a -> Decoder b
 andThen mapper decoder =
@@ -250,6 +250,9 @@ andThen mapper decoder =
 
 
 {-| Map the result of a decoder with another function.
+
+    Db.Decode.int "id"
+        |> Db.Decode.map String.fromInt
 -}
 map : (a -> b) -> Decoder a -> Decoder b
 map mapper decoder =
